@@ -22,6 +22,8 @@ interface SettingsState {
   backgroundAlertsEnabled: boolean;
   /** Master switch for chimes/haptics. Combined with the in-drive mute toggle. */
   soundEnabled: boolean;
+  hasCompletedOnboarding: boolean;
+  showOnboardingTutorial: boolean;
   systemHealth: any | null;
   isLoadingHealth: boolean;
   /** Non-null when the health check failed. */
@@ -34,6 +36,9 @@ interface SettingsState {
   toggleBackgroundAlerts: () => void;
   toggleSound: () => void;
   refreshHealth: () => Promise<void>;
+  completeOnboarding: () => void;
+  setShowOnboardingTutorial: (show: boolean) => void;
+  resetOnboarding: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -45,6 +50,8 @@ export const useSettingsStore = create<SettingsState>()(
       worseningThresholdPct: 10,
       backgroundAlertsEnabled: true,
       soundEnabled: true,
+      hasCompletedOnboarding: false,
+      showOnboardingTutorial: false,
       systemHealth: null,
       isLoadingHealth: false,
       healthError: null,
@@ -56,6 +63,10 @@ export const useSettingsStore = create<SettingsState>()(
       toggleBackgroundAlerts: () =>
         set((state) => ({ backgroundAlertsEnabled: !state.backgroundAlertsEnabled })),
       toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
+
+      completeOnboarding: () => set({ hasCompletedOnboarding: true, showOnboardingTutorial: false }),
+      setShowOnboardingTutorial: (showOnboardingTutorial) => set({ showOnboardingTutorial }),
+      resetOnboarding: () => set({ hasCompletedOnboarding: false, showOnboardingTutorial: true }),
 
       refreshHealth: async () => {
         set({ isLoadingHealth: true, healthError: null });
@@ -78,6 +89,7 @@ export const useSettingsStore = create<SettingsState>()(
         worseningThresholdPct: state.worseningThresholdPct,
         backgroundAlertsEnabled: state.backgroundAlertsEnabled,
         soundEnabled: state.soundEnabled,
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
     }
   )

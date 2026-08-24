@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Navigation, Bell, Sparkles } from 'lucide-react-native';
+import { Navigation, Bell, Sparkles, HelpCircle } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { AiChatModal } from '../Copilot/AiChatModal';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -10,6 +11,7 @@ import { spacing } from '../../theme/spacing';
 const HeaderBase: React.FC = () => {
   const setShowLockScreenModal = useNavigationStore(s => s.setShowLockScreenModal);
   const activeAlert = useNavigationStore(s => s.activeAlert);
+  const setShowOnboardingTutorial = useSettingsStore(s => s.setShowOnboardingTutorial);
 
   const [chatModalVisible, setChatModalVisible] = useState(false);
 
@@ -25,8 +27,20 @@ const HeaderBase: React.FC = () => {
         </View>
       </View>
 
-      {/* Right Action Icons (AI Copilot Logo & Alert Bell) */}
+      {/* Right Action Icons (Tutorial, AI Copilot & Alert Bell) */}
       <View style={styles.actionsRight}>
+        {/* App Tutorial & Feature Guide Button */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowOnboardingTutorial(true)}
+          style={styles.helpButton}
+          hitSlop={spacing.hitSlop}
+          accessibilityRole="button"
+          accessibilityLabel="Open TrafficIQ Feature Tutorial Guide"
+        >
+          <HelpCircle size={17} color={colors.text.secondary} strokeWidth={2} />
+        </TouchableOpacity>
+
         {/* AI Copilot Logo Action Button */}
         <TouchableOpacity
           activeOpacity={0.8}
@@ -115,6 +129,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexShrink: 0
+  },
+  helpButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   aiButton: {
     width: 38,

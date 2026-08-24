@@ -67,7 +67,10 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
     # Database
-    DATABASE_PATH: str = str(BASE_DIR / "database" / "traffic_history.db")
+    DATABASE_PATH: str = os.getenv(
+        "DATABASE_PATH",
+        "/tmp/traffic_history.db" if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME") else str(BASE_DIR / "database" / "traffic_history.db")
+    )
     
     # Chronos-2 Forecasting Model
     CHRONOS_MODEL_NAME: str = os.getenv("CHRONOS_MODEL_NAME", "amazon/chronos-2")

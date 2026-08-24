@@ -1,9 +1,16 @@
 import threading
-import torch
-import numpy as np
 import logging
 from typing import Dict, Any, List
 from datetime import datetime
+
+try:
+    import torch
+    HAS_TORCH = True
+except Exception:
+    torch = None
+    HAS_TORCH = False
+
+import numpy as np
 from backend.config import settings
 
 logger = logging.getLogger(__name__)

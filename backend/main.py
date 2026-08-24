@@ -1,6 +1,15 @@
+import sys
+import os
 import logging
 import sqlite3
 from pathlib import Path
+
+# Ensure root and backend directory are in sys.path for Vercel serverless runtime
+_current_dir = Path(__file__).resolve().parent
+_root_dir = _current_dir.parent
+for _p in [str(_root_dir), str(_current_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Security, Depends
 from fastapi.security.api_key import APIKeyHeader

@@ -10,6 +10,7 @@ import { RoutesScreen } from './src/screens/RoutesScreen';
 import { TrafficScreen } from './src/screens/TrafficScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { AppIntroTutorial } from './src/components/Onboarding/AppIntroTutorial';
 import { colors } from './src/theme/colors';
 
 const WEB_FRAME_WIDTH = 460;
@@ -104,6 +105,9 @@ export default function App() {
 
             {/* Floating Tactile Bottom Tab Bar */}
             <TabBar />
+
+            {/* Fresh Start Intro & Feature Tutorial Onboarding */}
+            <AppIntroTutorial />
           </View>
         </SafeAreaView>
       </View>
