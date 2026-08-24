@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "TrafficIQ",
+    "slug": "trafficiq-mobile",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
+    "splash": {
+      "backgroundColor": "#080A0D"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trafficiq.cockpit"
+    },
+    "android": {
+      "package": "com.trafficiq.cockpit",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": []
+  }
+}
