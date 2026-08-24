@@ -28,7 +28,6 @@ const BottomSheetContainerBase: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel="Collapse route details"
           >
-            {/* Swallow taps inside the sheet so they do not dismiss it. */}
             <Pressable accessible={false} style={styles.modalSheet} onPress={() => {}}>
               <ExpandedRouteSheet />
             </Pressable>
@@ -46,7 +45,7 @@ export const BottomSheetContainer = React.memo(BottomSheetContainerBase);
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 82,
     left: 0,
     right: 0,
     zIndex: 25
