@@ -17,20 +17,25 @@ const resolveBaseUrl = (): string => {
   if (fromEnv) return fromEnv.replace(/\/+$/, '');
 
   const fromConfig = (Constants.expoConfig?.extra as any)?.apiBaseUrl;
-  if (fromConfig) return String(fromConfig).replace(/\/+$/, '');
+  // If an explicit non-localhost remote URL is provided (e.g. production https endpoint), use it.
+  if (fromConfig && !String(fromConfig).includes('localhost') && !String(fromConfig).includes('127.0.0.1')) {
+    return String(fromConfig).replace(/\/+$/, '');
+  }
 
   if (Platform.OS === 'web') {
-    return `http://localhost:${DEFAULT_PORT}`;
+    return fromConfig ? String(fromConfig).replace(/\/+$/, '') : `http://localhost:${DEFAULT_PORT}`;
   }
 
   // In Expo Go on a physical device, the host PC's IP is exposed via hostUri.
   const hostUri =
     Constants.expoConfig?.hostUri ||
     (Constants as any).manifest?.debuggerHost ||
-    (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).experienceUrl;
 
   if (hostUri) {
-    const hostIp = String(hostUri).split(':')[0];
+    const cleaned = String(hostUri).replace(/^[a-zA-Z]+:\/\//, '');
+    const hostIp = cleaned.split(':')[0];
     if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
       return `http://${hostIp}:${DEFAULT_PORT}`;
     }
