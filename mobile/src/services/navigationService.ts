@@ -6,6 +6,12 @@ import {
   generateSimulatedManeuvers
 } from './demoFallbackEngine';
 
+export {
+  startSimulatedNavSession,
+  updateSimulatedNavStep,
+  generateSimulatedManeuvers
+};
+
 export interface Maneuver {
   step: number;
   type: string;

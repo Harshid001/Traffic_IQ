@@ -38,7 +38,7 @@ const TabBarBase: React.FC = () => {
               hitSlop={6}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Icon size={19} color={isActive ? colors.primaryBright : colors.text.muted} strokeWidth={isActive ? 2.6 : 1.9} />
+                <Icon size={19} color={isActive ? '#38BDF8' : colors.text.muted} strokeWidth={isActive ? 2.6 : 1.9} />
                 {isLiveNav && <View style={styles.liveDot} />}
               </View>
               <Text numberOfLines={1} style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
     gap: 2
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(200, 205, 212, 0.14)',
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(200, 205, 212, 0.35)'
+    borderColor: 'rgba(56, 189, 248, 0.35)'
   },
   iconWrap: {
     width: 32,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     position: 'relative'
   },
   iconWrapActive: {
-    backgroundColor: 'rgba(200, 205, 212, 0.18)'
+    backgroundColor: 'rgba(56, 189, 248, 0.18)'
   },
   liveDot: {
     position: 'absolute',
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primaryBright,
+    backgroundColor: '#38BDF8',
     borderWidth: 1.5,
     borderColor: colors.surface
   },

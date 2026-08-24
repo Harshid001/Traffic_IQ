@@ -37,7 +37,7 @@ export const TrafficScreen: React.FC = () => {
       emptyTitle="No active route"
       emptyMessage="Calculate a corridor to view live traffic analytics and forecasts."
       emptyIcon={<TrendingUp size={20} color={colors.text.secondary} />}
-      isStale={!!routingData?.is_fallback}
+      isStale={!!routingData?.is_fallback && routingData?.routing_provenance !== 'DEMO'}
       lastUpdatedAt={routingData?.fetched_at}
       onRetry={retry}
       retryLabel="Retry"
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.cardPadding,
-    paddingBottom: 110
+    paddingBottom: 140
   },
   contentWrapper: {
     width: '100%',

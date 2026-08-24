@@ -15,16 +15,8 @@ import {
   MapPin,
   Check,
   ChevronRight,
-  Zap,
-  Coffee,
-  Car,
-  Utensils,
-  Home,
-  Briefcase,
-  Plane,
-  Train,
-  Layers,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { CockpitMap } from '../components/Map/CockpitMap';
@@ -39,22 +31,8 @@ import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 import { useLayout } from '../theme/useLayout';
 
-/** Drive simulation tick interval. */
-const SIM_TICK_MS = 1200;
-
-const QUICK_POIS = [
-  { id: 'ev', label: 'EV Charging', icon: Zap, color: colors.poi.ev },
-  { id: 'coffee', label: 'Coffee & Cafe', icon: Coffee, color: colors.poi.coffee },
-  { id: 'parking', label: 'Parking Space', icon: Car, color: colors.poi.parking },
-  { id: 'food', label: 'Dine & Food', icon: Utensils, color: colors.poi.food }
-];
-
-const SHORTCUT_DESTINATIONS = [
-  { id: 'home', label: 'Home', sub: 'Navi Mumbai', corridorId: 'vashi-dadar', icon: Home },
-  { id: 'work', label: 'Office / Tech Park', sub: 'BKC, Mumbai', corridorId: 'thane-bkc', icon: Briefcase },
-  { id: 'airport', label: 'International Airport', sub: 'T2 Terminal', corridorId: 'andheri-nariman', icon: Plane },
-  { id: 'station', label: 'Central Station', sub: 'CSMT Mumbai', corridorId: 'andheri-nariman', icon: Train }
-];
+/** Drive simulation tick interval - 500ms for fluid responsiveness. */
+const SIM_TICK_MS = 500;
 
 export const NavigateScreen: React.FC = () => {
   const isNavigating = useNavigationStore(s => s.isNavigating);
@@ -68,9 +46,7 @@ export const NavigateScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedPoi, setSelectedPoi] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [focusMapMode, setFocusMapMode] = useState(false);
   const { dialogMaxWidth } = useLayout();
 
   /** Active Drive Simulation Ticker Loop. */
@@ -91,10 +67,6 @@ export const NavigateScreen: React.FC = () => {
     [setSelectedCorridor]
   );
 
-  const togglePoi = useCallback((id: string) => {
-    setSelectedPoi(prev => (prev === id ? null : id));
-  }, []);
-
   const currentCorridor = getCorridor(selectedCorridor);
   const destinationLabel = routingData?.corridor_name || currentCorridor.name;
 
@@ -106,132 +78,42 @@ export const NavigateScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/*
-        Top Floating Overlay Stack:
-        Contains Destination Search, Shortcut POIs, Maneuver HUD, and Predictive Alerts.
-      */}
+      {/* Top Floating Overlay Stack */}
       <View style={styles.overlayStack} pointerEvents="box-none">
         {!isNavigating && (
           <>
-            {focusMapMode ? (
-              /* Compact Collapsed Top Bar in Focus Map Mode */
+            {/* Interactive Destination Card */}
+            <View style={styles.searchRow}>
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => setFocusMapMode(false)}
-                style={styles.compactFocusBar}
+                onPress={() => setPickerOpen(true)}
+                style={styles.searchBox}
                 accessibilityRole="button"
-                accessibilityLabel="Exit full map focus mode and show destination controls"
+                accessibilityLabel={`Destination: ${destinationLabel}. Tap to change destination.`}
               >
-                <View style={styles.focusBarDot} />
-                <Text style={styles.focusBarText} numberOfLines={1}>
-                  {destinationLabel}
-                </Text>
-                <View style={styles.focusRestorePill}>
-                  <Text style={styles.focusRestoreText}>Show Controls</Text>
+                <View style={styles.searchIconRing}>
+                  <Search size={15} color={colors.primaryBright} strokeWidth={2.5} />
+                </View>
+                <View style={styles.searchTextCol}>
+                  <Text style={styles.searchLabel}>DESTINATION CORRIDOR</Text>
+                  <Text style={styles.searchVal} numberOfLines={1}>
+                    {destinationLabel}
+                  </Text>
+                </View>
+                <View style={styles.searchActionPill}>
+                  <Text style={styles.searchActionText}>Change</Text>
+                  <ChevronRight size={13} color={colors.primary} />
                 </View>
               </TouchableOpacity>
-            ) : (
-              <>
-                {/* Interactive Destination Search Box */}
-                <View style={styles.searchRow}>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => setPickerOpen(true)}
-                    style={styles.searchBox}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Destination: ${destinationLabel}. Tap to change destination.`}
-                  >
-                    <View style={styles.searchIconRing}>
-                      <Search size={15} color={colors.primaryBright} strokeWidth={2.5} />
-                    </View>
-                    <View style={styles.searchTextCol}>
-                      <Text style={styles.searchLabel}>DESTINATION CORRIDOR</Text>
-                      <Text style={styles.searchVal} numberOfLines={1}>
-                        {destinationLabel}
-                      </Text>
-                    </View>
-                    <View style={styles.searchActionPill}>
-                      <Text style={styles.searchActionText}>Change</Text>
-                      <ChevronRight size={13} color={colors.primary} />
-                    </View>
-                  </TouchableOpacity>
+            </View>
 
-                  {/* Focus / Expand Map Viewport Button */}
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setFocusMapMode(true)}
-                    style={styles.focusMapToggle}
-                    accessibilityRole="button"
-                    accessibilityLabel="Focus map and hide search controls"
-                  >
-                    <Sparkles size={14} color={colors.primaryBright} />
-                    <Text style={styles.focusMapToggleText}>Map</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Quick Destination Shortcuts (Home, Work, Airport) */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipsScroll}
-                >
-                  {SHORTCUT_DESTINATIONS.map(item => {
-                    const isSelected = selectedCorridor === item.corridorId;
-                    const IconComponent = item.icon;
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        activeOpacity={0.75}
-                        onPress={() => setSelectedCorridor(item.corridorId)}
-                        style={[styles.shortcutChip, isSelected && styles.shortcutChipSelected]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Navigate to ${item.label}`}
-                      >
-                        <IconComponent size={12} color={isSelected ? colors.primary : colors.text.secondary} />
-                        <Text style={[styles.shortcutText, isSelected && styles.shortcutTextSelected]}>
-                          {item.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Quick POI Amenities on Route */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.poiScroll}
-                >
-                  {QUICK_POIS.map(poi => {
-                    const active = selectedPoi === poi.id;
-                    const Icon = poi.icon;
-                    return (
-                      <TouchableOpacity
-                        key={poi.id}
-                        activeOpacity={0.75}
-                        onPress={() => togglePoi(poi.id)}
-                        style={[styles.poiChip, active && { borderColor: poi.color, backgroundColor: colors.surface }]}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: active }}
-                      >
-                        <Icon size={12} color={active ? poi.color : colors.text.muted} />
-                        <Text style={[styles.poiText, active && { color: colors.text.bright, fontWeight: '700' }]}>
-                          {poi.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                {routesError && (
-                  <ErrorState
-                    title="Could not load routes"
-                    message={routesError}
-                    onRetry={() => fetchRoutes(selectedCorridor)}
-                    retryLabel="Retry"
-                  />
-                )}
-              </>
+            {routesError && (
+              <ErrorState
+                title="Could not load routes"
+                message={routesError}
+                onRetry={() => fetchRoutes(selectedCorridor)}
+                retryLabel="Retry"
+              />
             )}
           </>
         )}
@@ -278,14 +160,23 @@ export const NavigateScreen: React.FC = () => {
             onPress={e => e.stopPropagation()}
           >
             <View style={styles.modalHeaderRow}>
-              <View>
-                <Text style={styles.modalHeader}>CHOOSE DESTINATION CORRIDOR</Text>
-                <Text style={styles.modalSubHeader}>Live traffic optimization ready</Text>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={styles.modalHeader}>Select Corridor</Text>
+                <Text style={styles.modalSubHeader}>Live multi-route navigation</Text>
               </View>
-              <View style={styles.aiBadge}>
-                <Sparkles size={12} color={colors.primary} />
-                <Text style={styles.aiBadgeText}>Smart Nav</Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setPickerOpen(false);
+                  setSearchQuery('');
+                }}
+                style={styles.modalCloseButton}
+                hitSlop={spacing.hitSlop}
+                accessibilityRole="button"
+                accessibilityLabel="Close corridor picker"
+              >
+                <X size={17} color={colors.text.secondary} />
+              </TouchableOpacity>
             </View>
 
             {/* Search Filter Box */}
@@ -294,14 +185,14 @@ export const NavigateScreen: React.FC = () => {
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Type highway, city or route name..."
+                placeholder="Type highway, city or corridor..."
                 placeholderTextColor={colors.text.dimmed}
                 style={styles.filterInput}
                 autoFocus
               />
             </View>
 
-            <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
               {filteredCorridors.map(corridor => {
                 const isSelected = corridor.id === selectedCorridor;
                 return (
@@ -317,15 +208,10 @@ export const NavigateScreen: React.FC = () => {
                       <MapPin size={16} color={isSelected ? colors.primary : colors.text.secondary} />
                     </View>
                     <View style={styles.pickerTextCol}>
-                      <View style={styles.pickerTitleRow}>
-                        <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
-                          {corridor.name}
-                        </Text>
-                        <View style={styles.pickerTag}>
-                          <Text style={styles.pickerTagText}>{corridor.tag}</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.pickerCity}>{corridor.city} • High-capacity route</Text>
+                      <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
+                        {corridor.name}
+                      </Text>
+                      <Text style={styles.pickerCity}>{corridor.city}</Text>
                     </View>
                     {isSelected && (
                       <View style={styles.pickerCheck}>
@@ -475,58 +361,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.primaryBright
   },
-  chipsScroll: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2
-  },
-  shortcutChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(22, 27, 34, 0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    height: 30,
-    justifyContent: 'center'
-  },
-  shortcutChipSelected: {
-    backgroundColor: 'rgba(200, 205, 212, 0.16)',
-    borderColor: 'rgba(200, 205, 212, 0.4)'
-  },
-  shortcutText: {
-    fontSize: 10.5,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.secondary
-  },
-  shortcutTextSelected: {
-    color: colors.primaryBright,
-    fontWeight: typography.weights.bold
-  },
-  poiScroll: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2
-  },
-  poiChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(22, 27, 34, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    height: 26,
-    justifyContent: 'center'
-  },
-  poiText: {
-    fontSize: 9.5,
-    fontWeight: typography.weights.medium,
-    color: colors.text.muted
-  },
   mapWrapper: {
     flex: 1,
     width: '100%'
@@ -554,34 +388,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md
+    marginBottom: spacing.md,
+    gap: spacing.md
+  },
+  modalHeaderLeft: {
+    flex: 1,
+    minWidth: 0
   },
   modalHeader: {
-    fontSize: typography.sizes.label,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.bright,
-    letterSpacing: 0.5
+    color: colors.text.bright
   },
   modalSubHeader: {
-    fontSize: typography.sizes.caption,
-    color: colors.text.secondary,
+    fontSize: 11,
+    color: colors.text.muted,
     marginTop: 2
   },
-  aiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    gap: 3
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    fontWeight: typography.weights.bold,
-    color: colors.primary
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   filterBox: {
     flexDirection: 'row',
@@ -591,20 +424,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: spacing.radius.lg,
     paddingHorizontal: spacing.md,
-    height: 40,
+    height: 42,
     marginBottom: spacing.md,
     gap: spacing.sm
   },
   filterInput: {
     flex: 1,
     color: colors.text.primary,
-    fontSize: typography.sizes.body
+    fontSize: 13
   },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
-    minHeight: spacing.touchTargetComfortable,
+    minHeight: 56,
     borderRadius: spacing.radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -617,9 +450,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryFaint
   },
   pickerIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -627,36 +460,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border
   },
   pickerTextCol: {
-    flex: 1
-  },
-  pickerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm
+    flex: 1,
+    minWidth: 0
   },
   pickerTitle: {
-    fontSize: typography.sizes.body,
+    fontSize: 13,
     fontWeight: typography.weights.bold,
-    color: colors.text.primary,
-    flex: 1
-  },
-  pickerTag: {
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1
-  },
-  pickerTagText: {
-    fontSize: 10,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary
+    color: colors.text.primary
   },
   pickerTitleSelected: {
-    color: colors.primary
+    color: colors.primaryBright,
+    fontWeight: typography.weights.extrabold
   },
   pickerCity: {
-    fontSize: typography.sizes.caption,
+    fontSize: 11,
     color: colors.text.muted,
     marginTop: 2
   },

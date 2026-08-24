@@ -108,7 +108,7 @@ const ExpandedRouteSheetBase: React.FC = () => {
           </View>
         </View>
 
-        {/* 4-Cell Metric Grid */}
+        {/* Key Metrics Grid */}
         <View style={styles.metricGrid}>
           <View style={styles.metricCell}>
             <View style={styles.metricHeaderRow}>
@@ -117,14 +117,13 @@ const ExpandedRouteSheetBase: React.FC = () => {
             </View>
             <Text style={[styles.metricVal, { color: colors.primaryBright }]}>
               {selectedRoute.congestion_category}
-              {congestion !== null ? ` (${congestion}%)` : ''}
             </Text>
           </View>
 
           <View style={styles.metricCell}>
             <View style={styles.metricHeaderRow}>
               <ShieldCheck size={12} color={colors.info} />
-              <Text style={styles.metricLabel}>ON-TIME CONFIDENCE</Text>
+              <Text style={styles.metricLabel}>ON-TIME</Text>
             </View>
             <Text style={[styles.metricVal, { color: colors.text.bright }]}>
               {selectedRoute.reliability ? `${reliabilityPct}%` : 'High'}
@@ -133,21 +132,8 @@ const ExpandedRouteSheetBase: React.FC = () => {
 
           <View style={styles.metricCell}>
             <View style={styles.metricHeaderRow}>
-              <Clock size={12} color={colors.fastest} />
-              <Text style={styles.metricLabel}>OUTLOOK (+20m)</Text>
-            </View>
-            <Text style={[styles.metricVal, { color: colors.fastestBright }]}>
-              {selectedRoute.trend || 'Stable'}
-              {selectedRoute.forecast_20m_p50 !== undefined && selectedRoute.forecast_20m_p50 !== null
-                ? ` (${Math.round(selectedRoute.forecast_20m_p50)}%)`
-                : ''}
-            </Text>
-          </View>
-
-          <View style={styles.metricCell}>
-            <View style={styles.metricHeaderRow}>
               <Coins size={12} color={colors.text.secondary} />
-              <Text style={styles.metricLabel}>TOLL FEES</Text>
+              <Text style={styles.metricLabel}>TOLL</Text>
             </View>
             <Text style={[styles.metricVal, { color: colors.text.strong }]}>
               ₹{selectedRoute.toll_cost}
@@ -155,20 +141,7 @@ const ExpandedRouteSheetBase: React.FC = () => {
           </View>
         </View>
 
-        {/* "Why This Route?" AI Copilot Rationale */}
-        <View style={styles.whyBox}>
-          <View style={styles.whyHeader}>
-            <Sparkles size={14} color={colors.primary} />
-            <Text style={styles.whyHeaderText}>SMART COPILOT RATIONALE</Text>
-          </View>
-          <Text style={styles.whyText}>
-            {selectedRoute.is_best
-              ? `Recommended for lowest congestion delay and ${reliabilityPct}% predictable arrival time while bypassing major bottleneck junctions.`
-              : selectedRoute.is_fastest
-                ? `Shortest total drive duration (${selectedRoute.predicted_eta_p50} mins) under current traffic conditions.`
-                : 'Alternative candidate considered with toll-free scenic corridors.'}
-          </Text>
-        </View>
+
 
         {/* Available Alternative Routes List */}
         <View style={styles.routesSection}>
@@ -603,15 +576,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#F1F5F9',
     borderRadius: 16,
     paddingVertical: spacing.md,
     minHeight: 50,
     gap: spacing.sm,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8
   },
   startButtonLoading: {
     opacity: 0.8
@@ -619,7 +592,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.onAccent,
+    color: '#080A0D',
     letterSpacing: 0.5
   }
 });

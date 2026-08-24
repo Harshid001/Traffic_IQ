@@ -14,7 +14,8 @@ import {
   Radio,
   ShieldAlert,
   Flame,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
@@ -36,6 +37,8 @@ const ManeuverHUDBase: React.FC = () => {
   const isMuted = useNavigationStore(s => s.isMuted);
   const toggleMute = useNavigationStore(s => s.toggleMute);
   const stopNavigation = useNavigationStore(s => s.stopNavigation);
+  const startNavigation = useNavigationStore(s => s.startNavigation);
+  const progressPct = useNavigationStore(s => s.progressPct);
   const upcomingSegment = useNavigationStore(s => s.upcomingSegment);
   const { dialogMaxWidth } = useLayout();
 
@@ -105,6 +108,19 @@ const ManeuverHUDBase: React.FC = () => {
 
         {/* Action Controls */}
         <View style={styles.actionCol}>
+          {progressPct >= 1.0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={startNavigation}
+              style={[styles.actionButton, styles.restartHudButton]}
+              hitSlop={spacing.hitSlop}
+              accessibilityRole="button"
+              accessibilityLabel="Restart navigation demo"
+            >
+              <RotateCcw size={16} color="#38BDF8" strokeWidth={2.6} />
+            </TouchableOpacity>
+          )}
+
           {/* Quick Hazard Report Button */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -145,7 +161,7 @@ const ManeuverHUDBase: React.FC = () => {
         </View>
       </View>
 
-      {/* Floating Speedometer & Upcoming Segment Strip */}
+      {/* Floating Speedometer */}
       <View style={styles.telemetryStrip}>
         <View style={styles.speedPill}>
           <View style={styles.speedCol}>
@@ -162,52 +178,6 @@ const ManeuverHUDBase: React.FC = () => {
             <Text style={[styles.limitText, isOverSpeed && styles.limitTextOver]}>{speedLimitKmh}</Text>
           </View>
         </View>
-
-        {upcomingSegment && (
-          <View style={styles.segmentPill}>
-            <View
-              style={[
-                styles.segmentDot,
-                upcomingCongestion && upcomingCongestion > 60
-                  ? { backgroundColor: colors.danger }
-                  : upcomingCongestion && upcomingCongestion > 30
-                  ? { backgroundColor: colors.warning }
-                  : { backgroundColor: colors.primary }
-              ]}
-            />
-            <View style={styles.segmentTextCol}>
-              <Text style={styles.segmentLabel}>NEXT ROAD</Text>
-              <Text style={styles.segmentName} numberOfLines={1}>
-                {upcomingSegment.name || 'Continuing ahead'}
-              </Text>
-            </View>
-            {upcomingCongestion !== null && (
-              <View
-                style={[
-                  styles.congBadge,
-                  upcomingCongestion > 60
-                    ? styles.congBadgeHeavy
-                    : upcomingCongestion > 30
-                    ? styles.congBadgeModerate
-                    : styles.congBadgeLight
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.segmentCong,
-                    upcomingCongestion > 60
-                      ? { color: colors.dangerBright }
-                      : upcomingCongestion > 30
-                      ? { color: colors.warningBright }
-                      : { color: colors.primaryBright }
-                  ]}
-                >
-                  {upcomingCongestion}%
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
       </View>
 
       {/* Driver Hazard Reporting Modal */}
@@ -363,6 +333,10 @@ const styles = StyleSheet.create({
   hazardButton: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderColor: 'rgba(245, 158, 11, 0.35)'
+  },
+  restartHudButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: 'rgba(56, 189, 248, 0.40)'
   },
   exitButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',

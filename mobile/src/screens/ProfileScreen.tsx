@@ -10,8 +10,8 @@ import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
 const SAVED_PLACES = [
-  { id: 'home', title: 'Home', address: 'Palm Beach Road, Navi Mumbai', corridorId: 'vashi-dadar', icon: Home },
-  { id: 'work', title: 'Work / BKC Office', address: 'Bandra Kurla Complex, Mumbai', corridorId: 'thane-bkc', icon: Briefcase }
+  { id: 'ahmedabad', title: 'Tech Hub Commute', address: 'SG Highway → Infocity, Gandhinagar', corridorId: 'ahmedabad_gandhinagar', icon: Briefcase },
+  { id: 'singapore', title: 'Singapore Airport Express', address: 'Marina Bay CBD → Changi Airport (SIN)', corridorId: 'singapore_changi_cbd', icon: Navigation }
 ];
 
 export const ProfileScreen: React.FC = () => {

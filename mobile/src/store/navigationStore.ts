@@ -4,6 +4,7 @@ import { RoutingResponse, calculateRoutes } from '../services/routingService';
 import {
   Maneuver,
   startNavigationSession,
+  startSimulatedNavSession,
   updateNavigationStep,
   rerouteSession
 } from '../services/navigationService';
@@ -201,42 +202,54 @@ export const useNavigationStore = create<NavigationState>()(
         }
 
         const activeRoute = routingData.routes.find(r => r.id === selectedRouteId) || routingData.routes[0];
+        const firstCoord = activeRoute.coordinates?.[0];
+        const speed = activeRoute.live_duration_min > 0
+          ? Math.round((activeRoute.distance_km / activeRoute.live_duration_min) * 60)
+          : 45;
 
-        set({ isStartingNavigation: true, navigationError: null });
+        // Instant synchronous initialization (0ms latency, vehicle and maneuvers reset immediately)
+        const instantSession = startSimulatedNavSession(activeRoute, speed);
+        stepInFlight = false;
+
+        set({
+          isNavigating: true,
+          isStartingNavigation: false,
+          isSimulatingDrive: true,
+          progressPct: 0.0,
+          currentLat: firstCoord ? firstCoord[0] : get().currentLat,
+          currentLon: firstCoord ? firstCoord[1] : get().currentLon,
+          maneuvers: instantSession.maneuvers,
+          currentManeuver: instantSession.current_maneuver,
+          remainingDistanceKm: instantSession.remaining_distance_km,
+          remainingEtaMin: instantSession.eta_minutes,
+          arrivalTime: instantSession.arrival_time,
+          speedLimitKmh: instantSession.speed_limit_kmh,
+          currentSpeedKmh: instantSession.current_speed_kmh,
+          activeAlert: null,
+          navigationError: null,
+          bottomSheetExpanded: false
+        });
+
+        emitAlertCue('MANEUVER', isMuted);
+
+        // Async server session start without blocking the demo
         try {
           const session = await startNavigationSession(
             activeRoute,
             routingData.routes,
             routingData.best_route_id,
             routingData.fastest_route_id,
-            activeRoute.live_duration_min > 0
-              ? Math.round((activeRoute.distance_km / activeRoute.live_duration_min) * 60)
-              : 45
+            speed
           );
-
-          const firstCoord = activeRoute.coordinates?.[0];
-
-          set({
-            isNavigating: true,
-            isStartingNavigation: false,
-            isSimulatingDrive: true,
-            progressPct: 0.0,
-            currentLat: firstCoord ? firstCoord[0] : get().currentLat,
-            currentLon: firstCoord ? firstCoord[1] : get().currentLon,
-            maneuvers: session.maneuvers,
-            currentManeuver: session.current_maneuver,
-            remainingDistanceKm: session.remaining_distance_km,
-            remainingEtaMin: session.eta_minutes,
-            arrivalTime: session.arrival_time,
-            speedLimitKmh: session.speed_limit_kmh,
-            currentSpeedKmh: session.current_speed_kmh,
-            bottomSheetExpanded: false
-          });
-
-          emitAlertCue('MANEUVER', isMuted);
-        } catch (err) {
-          set({ isStartingNavigation: false, navigationError: toUserMessage(err) });
-          throw err;
+          if (session) {
+            set({
+              maneuvers: session.maneuvers,
+              currentManeuver: session.current_maneuver,
+              speedLimitKmh: session.speed_limit_kmh
+            });
+          }
+        } catch {
+          // Gracefully continue with instant local simulation
         }
       },
 
@@ -281,7 +294,13 @@ export const useNavigationStore = create<NavigationState>()(
         const activeRoute = routingData.routes.find(r => r.id === selectedRouteId) || routingData.routes[0];
         if (!activeRoute) return;
 
-        const delta = deltaProgress ?? 0.015 * simulationSpeed;
+        // Complete demo drive smoothly in exactly 30 seconds (60 ticks @ 500ms interval)
+        const DEMO_TOTAL_DURATION_SEC = 30;
+        const SIM_TICK_INTERVAL_SEC = 0.5; // 500ms
+        const TOTAL_TICKS = DEMO_TOTAL_DURATION_SEC / SIM_TICK_INTERVAL_SEC; // 60 steps
+        const defaultDelta = (1.0 / TOTAL_TICKS) * simulationSpeed;
+
+        const delta = deltaProgress ?? defaultDelta;
         const nextProgress = Math.min(1.0, progressPct + delta);
 
         stepInFlight = true;

@@ -12,7 +12,8 @@ import {
   GripHorizontal,
   BellRing,
   Clock,
-  Sparkles
+  Sparkles,
+  RotateCcw
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { normalizeReliability } from '../../utils/format';
@@ -66,13 +67,18 @@ const CollapsedRouteSheetBase: React.FC = () => {
   if (!selectedRoute) return null;
 
   if (isNavigating) {
-    const progressWhole = Math.round(progressPct * 100);
+    const isReached = progressPct >= 1.0;
+    const progressWhole = isReached ? 100 : Math.round(progressPct * 100);
     return (
       <View style={styles.sheet}>
         {/* Progress Header */}
         <View style={styles.progressRow}>
-          <Text style={styles.progressText}>TRIP PROGRESS ({progressWhole}%)</Text>
-          <Text style={styles.arriveText}>EST. ARRIVAL {arrivalTime}</Text>
+          <Text style={[styles.progressText, isReached && styles.progressTextComplete]}>
+            {isReached ? 'TRIP COMPLETED (100%)' : `TRIP PROGRESS (${progressWhole}%)`}
+          </Text>
+          <Text style={styles.arriveText}>
+            {isReached ? 'DESTINATION REACHED' : `EST. ARRIVAL ${arrivalTime}`}
+          </Text>
         </View>
 
         {/* Progress Bar Track */}
@@ -82,7 +88,7 @@ const CollapsedRouteSheetBase: React.FC = () => {
           accessibilityValue={{ min: 0, max: 100, now: progressWhole }}
           accessibilityLabel={`Trip progress ${progressWhole} percent`}
         >
-          <View style={[styles.progressFill, { width: `${progressWhole}%` }]} />
+          <View style={[styles.progressFill, { width: `${progressWhole}%` }, isReached && styles.progressFillComplete]} />
         </View>
 
         {navigationError && (
@@ -101,61 +107,80 @@ const CollapsedRouteSheetBase: React.FC = () => {
             onPress={toggleBottomSheet}
             style={styles.etaCol}
             accessibilityRole="button"
-            accessibilityLabel={`${remainingEtaMin} minutes and ${remainingDistanceKm} km remaining.`}
+            accessibilityLabel={isReached ? 'Trip completed, arrived at destination.' : `${remainingEtaMin} minutes and ${remainingDistanceKm} km remaining.`}
           >
-            <View style={styles.etaRow}>
-              <Text style={styles.etaBig}>
-                {remainingEtaMin} <Text style={styles.etaUnit}>min</Text>
-              </Text>
-              <Text style={styles.distBig}>{remainingDistanceKm} km</Text>
-            </View>
+            {isReached ? (
+              <View style={styles.etaRow}>
+                <Text style={styles.arrivedTitle}>Arrived 🎉</Text>
+              </View>
+            ) : (
+              <View style={styles.etaRow}>
+                <Text style={styles.etaBig}>
+                  {remainingEtaMin} <Text style={styles.etaUnit}>min</Text>
+                </Text>
+                <Text style={styles.distBig}>{remainingDistanceKm} km</Text>
+              </View>
+            )}
             <View style={styles.routePill}>
-              <View style={styles.routeDot} />
+              <View style={[styles.routeDot, isReached && styles.routeDotComplete]} />
               <Text style={styles.routeName} numberOfLines={1}>
-                {selectedRoute.name}
+                {isReached ? 'Destination reached' : selectedRoute.name}
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* In-Drive Simulation Tools */}
-          <View style={styles.playbackRow}>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={() => triggerSimulatedAlert()}
-              style={styles.alertTriggerBtn}
-              hitSlop={spacing.hitSlop}
-              accessibilityRole="button"
-              accessibilityLabel="Trigger proactive traffic alert"
-            >
-              <BellRing size={15} color={colors.fastest} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={cycleSpeed}
-              style={styles.speedToggle}
-              hitSlop={spacing.hitSlop}
-              accessibilityRole="button"
-              accessibilityLabel={`Simulation speed ${simulationSpeed}x`}
-            >
-              <FastForward size={14} color={colors.fastest} />
-              <Text style={styles.speedToggleText}>{simulationSpeed}x</Text>
-            </TouchableOpacity>
-
+          {/* In-Drive Simulation Tools or Restart Button */}
+          {isReached ? (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={toggleDriveSimulation}
-              style={styles.playButton}
+              onPress={handleStartNavigation}
+              style={styles.restartDemoButton}
               accessibilityRole="button"
-              accessibilityLabel={isSimulatingDrive ? 'Pause drive' : 'Resume drive'}
+              accessibilityLabel="Restart navigation demo from beginning"
             >
-              {isSimulatingDrive ? (
-                <Pause size={18} color={colors.text.onAccent} strokeWidth={3} />
-              ) : (
-                <Play size={18} color={colors.text.onAccent} strokeWidth={3} />
-              )}
+              <RotateCcw size={15} color="#080A0D" strokeWidth={2.8} />
+              <Text style={styles.restartDemoButtonText}>Restart Demo</Text>
             </TouchableOpacity>
-          </View>
+          ) : (
+            <View style={styles.playbackRow}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => triggerSimulatedAlert()}
+                style={styles.alertTriggerBtn}
+                hitSlop={spacing.hitSlop}
+                accessibilityRole="button"
+                accessibilityLabel="Trigger proactive traffic alert"
+              >
+                <BellRing size={15} color={colors.fastest} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={cycleSpeed}
+                style={styles.speedToggle}
+                hitSlop={spacing.hitSlop}
+                accessibilityRole="button"
+                accessibilityLabel={`Simulation speed ${simulationSpeed}x`}
+              >
+                <FastForward size={14} color={colors.fastest} />
+                <Text style={styles.speedToggleText}>{simulationSpeed}x</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={toggleDriveSimulation}
+                style={styles.playButton}
+                accessibilityRole="button"
+                accessibilityLabel={isSimulatingDrive ? 'Pause drive' : 'Resume drive'}
+              >
+                {isSimulatingDrive ? (
+                  <Pause size={18} color="#080A0D" strokeWidth={3} />
+                ) : (
+                  <Play size={18} color="#080A0D" strokeWidth={3} />
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -184,19 +209,18 @@ const CollapsedRouteSheetBase: React.FC = () => {
             {isBest ? (
               <View style={styles.bestBadge}>
                 <ShieldCheck size={11} color={colors.primary} />
-                <Text style={styles.bestBadgeText}>Smart Recommendation</Text>
+                <Text style={styles.bestBadgeText}>Recommended</Text>
               </View>
             ) : isFastest ? (
               <View style={styles.fastestBadge}>
                 <Zap size={11} color={colors.fastest} />
-                <Text style={styles.fastestBadgeText}>Fastest Route</Text>
+                <Text style={styles.fastestBadgeText}>Fastest</Text>
               </View>
             ) : (
               <View style={styles.altBadge}>
-                <Text style={styles.altBadgeText}>Alternative Route</Text>
+                <Text style={styles.altBadgeText}>Alternative</Text>
               </View>
             )}
-            <Text style={styles.tollText}>Toll: ₹{selectedRoute.toll_cost}</Text>
           </View>
 
           <View style={styles.etaRow}>
@@ -204,16 +228,6 @@ const CollapsedRouteSheetBase: React.FC = () => {
               {selectedRoute.predicted_eta_p50} <Text style={styles.etaUnit}>min</Text>
             </Text>
             <Text style={styles.distBig}>{selectedRoute.distance_km} km</Text>
-          </View>
-
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
-              Live: <Text style={styles.metaHighlight}>{selectedRoute.congestion_category}</Text>
-            </Text>
-            <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaText}>
-              Reliability: <Text style={styles.metaVal}>{reliabilityPct}% on-time</Text>
-            </Text>
           </View>
         </View>
 
@@ -414,15 +428,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#F1F5F9',
     borderRadius: 14,
     paddingVertical: 11,
     minHeight: 48,
     gap: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8
   },
   startButtonLoading: {
     opacity: 0.8
@@ -430,7 +444,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 14,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.onAccent,
+    color: '#080A0D',
     letterSpacing: 0.3
   },
   progressRow: {
@@ -444,6 +458,9 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.extrabold,
     color: colors.primaryBright,
     letterSpacing: 0.6
+  },
+  progressTextComplete: {
+    color: '#38BDF8'
   },
   arriveText: {
     fontSize: 10.5,
@@ -461,6 +478,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: colors.primaryBright,
     borderRadius: 3
+  },
+  progressFillComplete: {
+    backgroundColor: '#38BDF8'
+  },
+  arrivedTitle: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.bright
   },
   navBottomRow: {
     flexDirection: 'row',
@@ -482,6 +508,30 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.primaryBright
+  },
+  routeDotComplete: {
+    backgroundColor: '#38BDF8'
+  },
+  restartDemoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    height: 42,
+    gap: 6,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8
+  },
+  restartDemoButtonText: {
+    fontSize: 12,
+    fontWeight: typography.weights.extrabold,
+    color: '#080A0D',
+    letterSpacing: 0.3
   },
   routeName: {
     fontSize: 11,
@@ -523,12 +573,12 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
+    shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.25,
     shadowRadius: 8
   },
   errorRow: {

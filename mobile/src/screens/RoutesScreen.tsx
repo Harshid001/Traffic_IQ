@@ -42,7 +42,7 @@ export const RoutesScreen: React.FC = () => {
       emptyTitle="No routes scored"
       emptyMessage="Calculate a corridor to see route comparison and alternatives."
       emptyIcon={<GitFork size={20} color={colors.text.secondary} />}
-      isStale={!!routingData?.is_fallback}
+      isStale={!!routingData?.is_fallback && routingData?.routing_provenance !== 'DEMO'}
       lastUpdatedAt={routingData?.fetched_at}
       onRetry={retry}
       retryLabel="Retry"
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.cardPadding,
-    paddingBottom: 110
+    paddingBottom: 140
   },
   contentWrapper: {
     width: '100%',

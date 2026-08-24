@@ -82,20 +82,22 @@ const VerifiedExplanationBase: React.FC<VerifiedExplanationProps> = ({
           <View style={styles.iconCircle}>
             <Sparkles size={14} color={colors.primaryBright} />
           </View>
-          <View>
-            <Text style={styles.title}>AI DRIVING COPILOT ANALYSIS</Text>
-            <Text style={styles.subTitle}>Why this recommendation was chosen</Text>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.title} numberOfLines={1}>AI Copilot Rationale</Text>
+            <Text style={styles.subTitle} numberOfLines={1}>Recommendation analysis</Text>
           </View>
         </View>
-        {validated ? (
-          <Badge variant="primary" size="sm" icon={<ShieldCheck size={12} color={colors.primary} />}>
-            Verified Smart Route
-          </Badge>
-        ) : (
-          <Badge variant="fastest" size="sm" icon={<AlertTriangle size={12} color={colors.fastest} />}>
-            {explanation.validation_status || 'Unverified'}
-          </Badge>
-        )}
+        <View style={styles.badgeWrapper}>
+          {validated ? (
+            <Badge variant="primary" size="sm" icon={<ShieldCheck size={11} color={colors.primary} />}>
+              Verified Smart Route
+            </Badge>
+          ) : (
+            <Badge variant="fastest" size="sm" icon={<AlertTriangle size={11} color={colors.fastest} />}>
+              {explanation.validation_status || 'Unverified'}
+            </Badge>
+          )}
+        </View>
       </View>
 
       {/* Model explanation bullets */}
@@ -196,13 +198,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md
+    marginBottom: spacing.md,
+    gap: spacing.sm
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    flex: 1
+    flex: 1,
+    minWidth: 0
+  },
+  headerTitleCol: {
+    flex: 1,
+    minWidth: 0
+  },
+  badgeWrapper: {
+    flexShrink: 0
   },
   iconCircle: {
     width: 28,
@@ -210,13 +221,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexShrink: 0
   },
   title: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.bright,
-    letterSpacing: 0.5
+    color: colors.text.bright
   },
   subTitle: {
     fontSize: 10,

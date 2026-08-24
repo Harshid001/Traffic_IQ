@@ -57,14 +57,16 @@ const ProvenanceTrackerBase: React.FC = () => {
           <View style={styles.iconCircle}>
             <Shield size={14} color={colors.info} />
           </View>
-          <View>
-            <Text style={styles.title}>LIVE DATA FEEDS & ENGINE STATUS</Text>
-            <Text style={styles.subTitle}>Transparent real-time telemetry and validation</Text>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.title} numberOfLines={1}>Data Feeds & Engine</Text>
+            <Text style={styles.subTitle} numberOfLines={1}>Real-time telemetry status</Text>
           </View>
         </View>
-        <Badge variant="primary" size="sm">
-          Active Feed
-        </Badge>
+        <View style={styles.badgeWrapper}>
+          <Badge variant="primary" size="sm">
+            Active Feed
+          </Badge>
+        </View>
       </View>
 
       <View style={styles.chainList}>
@@ -96,13 +98,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md
+    marginBottom: spacing.md,
+    gap: spacing.sm
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    flex: 1
+    flex: 1,
+    minWidth: 0
+  },
+  headerTitleCol: {
+    flex: 1,
+    minWidth: 0
+  },
+  badgeWrapper: {
+    flexShrink: 0
   },
   iconCircle: {
     width: 28,
@@ -110,13 +121,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.infoSoft,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexShrink: 0
   },
   title: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.bright,
-    letterSpacing: 0.5
+    color: colors.text.bright
   },
   subTitle: {
     fontSize: 10,

@@ -366,27 +366,31 @@ const styles = StyleSheet.create({
   previewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.sm
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.radius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)'
   },
   previewBtnText: {
     fontSize: 11,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.text.bright
   },
   driveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.primary,
+    gap: 6,
+    backgroundColor: '#F1F5F9',
     borderRadius: spacing.radius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6
+    paddingVertical: 7
   },
   driveBtnText: {
     fontSize: 11,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.onAccent
+    color: '#080A0D'
   }
 });

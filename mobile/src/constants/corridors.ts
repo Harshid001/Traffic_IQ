@@ -51,6 +51,14 @@ export const CORRIDORS: Corridor[] = [
     shortLabel: 'Financial Dist → SFO',
     isDemoCorridor: true,
     tag: 'Demo Corridor'
+  },
+  {
+    id: 'singapore_changi_cbd',
+    name: 'Marina Bay CBD → Changi Airport',
+    city: 'Singapore',
+    shortLabel: 'Marina Bay → Changi',
+    isDemoCorridor: true,
+    tag: 'Demo Corridor'
   }
 ];
 

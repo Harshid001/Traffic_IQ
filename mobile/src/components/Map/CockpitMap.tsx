@@ -19,12 +19,9 @@ import Svg, {
 } from 'react-native-svg';
 import {
   LocateFixed,
-  Compass,
-  Layers,
   Maximize2,
   Plus,
-  Minus,
-  Check
+  Minus
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
@@ -41,8 +38,8 @@ if (Platform.OS !== 'web') {
 }
 
 const LEAFLET_VERSION = '1.9.4';
-const LEAFLET_CSS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
-const LEAFLET_JS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`;
+const LEAFLET_CSS = `https://cdnjs.cloudflare.com/ajax/libs/leaflet/${LEAFLET_VERSION}/leaflet.min.css`;
+const LEAFLET_JS = `https://cdnjs.cloudflare.com/ajax/libs/leaflet/${LEAFLET_VERSION}/leaflet.min.js`;
 
 export interface MapLayerConfig {
   id: string;
@@ -54,51 +51,28 @@ export interface MapLayerConfig {
   maxZoom: number;
 }
 
-export const MAP_LAYERS: MapLayerConfig[] = [
-  {
-    id: 'cyber_dark',
-    name: 'Dark Cockpit',
-    badge: 'Night',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    maxZoom: 20
-  },
-  {
-    id: 'nav_streets',
-    name: 'Streets',
-    badge: 'Standard',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    maxZoom: 20
-  },
-  {
-    id: 'satellite',
-    name: 'Satellite',
-    badge: 'Aerial',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    labelUrl: 'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    subdomains: 'abcd',
-    maxZoom: 19
-  },
-  {
-    id: 'osm',
-    name: 'OpenStreetMap',
-    badge: 'OSM',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    subdomains: 'abc',
-    maxZoom: 19
-  }
-];
+export const STREETS_LAYER: MapLayerConfig = {
+  id: 'nav_streets',
+  name: 'Streets',
+  badge: 'Standard',
+  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  subdomains: 'abcd',
+  maxZoom: 20
+};
 
 /**
- * Shared Leaflet Stylesheet for simple, clean map rendering.
+ * Shared Leaflet Stylesheet for ultra-fast, hardware-accelerated rendering.
  */
 const SHARED_MAP_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #map { width: 100%; height: 100%; background: #080A0D; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  html, body { width: 100%; height: 100%; background: #080A0D; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  #map { width: 100%; height: 100%; background: #080A0D; overflow: hidden; transform: translateZ(0); will-change: transform; }
   .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
+  .leaflet-tile { will-change: transform; transform: translate3d(0,0,0); }
+  .leaflet-tile-container { will-change: transform; }
+  .leaflet-zoom-animated { will-change: transform; }
 
-  /* Premium Vehicle Navigation Marker */
+  /* Premium Vehicle Navigation Marker - Electric Blue Navigation Beacon */
   .vehicle-marker-wrapper {
     display: flex;
     align-items: center;
@@ -106,14 +80,15 @@ const SHARED_MAP_CSS = `
     width: 36px;
     height: 36px;
     pointer-events: none;
+    will-change: transform;
   }
   .vehicle-core-dot {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    background: #C8CDD4;
-    border: 2.5px solid #FFFFFF;
-    box-shadow: 0 0 14px rgba(200, 205, 212, 0.7), 0 2px 8px rgba(0, 0, 0, 0.6);
+    background: #2563EB;
+    border: 2.8px solid #FFFFFF;
+    box-shadow: 0 0 16px rgba(37, 99, 235, 0.85), 0 2px 8px rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -122,9 +97,9 @@ const SHARED_MAP_CSS = `
   .vehicle-arrow-tip {
     width: 0;
     height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-bottom: 7px solid #FFFFFF;
+    border-left: 4.5px solid transparent;
+    border-right: 4.5px solid transparent;
+    border-bottom: 8px solid #FFFFFF;
     transform: translateY(-1px);
   }
 
@@ -144,42 +119,59 @@ const SHARED_MAP_CSS = `
     cursor: pointer;
   }
   .origin-pin-bg {
-    background: #06B6D4;
+    background: #0284C7;
   }
   .dest-pin-bg {
-    background: #C8CDD4;
+    background: #2563EB;
   }
 
-  /* Route Time Badges */
+  /* Elevated Route Time Badges with Pointer - Never obscuring the route line */
   .simple-route-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 14px;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 10px;
     font-size: 11px;
     font-weight: 700;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
     cursor: pointer;
     white-space: nowrap;
     user-select: none;
+    position: relative;
+    transform: translateY(-16px);
+  }
+  .simple-route-badge::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #F1F5F9;
   }
   .active-route-badge {
-    background: rgba(17, 21, 26, 0.95);
-    border: 1.5px solid #C8CDD4;
+    background: rgba(17, 21, 26, 0.96);
+    border: 1.5px solid #F1F5F9;
     color: #FFFFFF;
   }
   .active-route-badge .badge-time {
-    color: #E2E6EB;
+    color: #38BDF8;
     font-weight: 800;
   }
   .alt-route-badge {
-    background: rgba(22, 27, 34, 0.90);
+    background: rgba(22, 27, 34, 0.92);
     border: 1px solid #475569;
     color: #94A3B8;
   }
+  .alt-route-badge::after {
+    border-top-color: #475569;
+  }
   .alt-route-badge:hover {
-    border-color: #E2E6EB;
+    border-color: #38BDF8;
     color: #FFFFFF;
   }
 `;
@@ -190,17 +182,22 @@ const SHARED_MAP_CSS = `
 function buildNativeLeafletHtml(
   allRoutes: any[],
   selectedRouteId: string | null,
-  currentLat: number,
-  currentLon: number,
-  headingDeg: number,
-  isNavigating: boolean,
-  activeLayerConfig: MapLayerConfig
+  initialLat: number,
+  initialLon: number,
+  initialHeading: number,
+  isNavigating: boolean
 ): string {
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://b.basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://c.basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://d.basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="dns-prefetch" href="https://basemaps.cartocdn.com" />
   <link rel="stylesheet" href="${LEAFLET_CSS}" />
   <script src="${LEAFLET_JS}"></script>
   <style>
@@ -216,20 +213,22 @@ function buildNativeLeafletHtml(
     var vehicleMarker;
     var routeLayerGroup;
     var pinLayerGroup;
-    var currentLayerConfig = ${JSON.stringify(activeLayerConfig)};
+    var currentLayerConfig = ${JSON.stringify(STREETS_LAYER)};
 
     function initMap() {
       if (typeof L === 'undefined') {
-        setTimeout(initMap, 80);
+        setTimeout(initMap, 40);
         return;
       }
 
       map = L.map('map', {
         zoomControl: false,
         attributionControl: false,
-        center: [${currentLat}, ${currentLon}],
+        center: [${initialLat}, ${initialLon}],
         zoom: ${isNavigating ? 16 : 13},
-        preferCanvas: true
+        preferCanvas: true,
+        fadeAnimation: false,
+        markerZoomAnimation: true
       });
 
       applyTileLayers(currentLayerConfig);
@@ -238,7 +237,7 @@ function buildNativeLeafletHtml(
       pinLayerGroup = L.layerGroup().addTo(map);
 
       renderAllMapElements();
-      renderVehicle(${currentLat}, ${currentLon}, ${headingDeg}, ${isNavigating});
+      renderVehicle(${initialLat}, ${initialLon}, ${initialHeading}, ${isNavigating});
     }
 
     function applyTileLayers(cfg) {
@@ -246,15 +245,22 @@ function buildNativeLeafletHtml(
       if (labelTileLayer) map.removeLayer(labelTileLayer);
 
       baseTileLayer = L.tileLayer(cfg.url, {
-        maxZoom: cfg.maxZoom || 19,
-        subdomains: cfg.subdomains || 'abcd'
+        maxZoom: cfg.maxZoom || 20,
+        subdomains: cfg.subdomains || 'abcd',
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        updateInterval: 30,
+        keepBuffer: 6
       }).addTo(map);
 
       if (cfg.labelUrl) {
         labelTileLayer = L.tileLayer(cfg.labelUrl, {
-          maxZoom: cfg.maxZoom || 19,
+          maxZoom: cfg.maxZoom || 20,
           subdomains: cfg.subdomains || 'abcd',
-          pane: 'markerPane'
+          pane: 'markerPane',
+          updateWhenIdle: false,
+          updateWhenZooming: false,
+          keepBuffer: 6
         }).addTo(map);
       }
     }
@@ -283,8 +289,8 @@ function buildNativeLeafletHtml(
 
         // Clean Solid Alternative Line
         var poly = L.polyline(coords, {
-          color: '#94A3B8',
-          weight: 4,
+          color: '#64748B',
+          weight: 4.5,
           opacity: 0.75,
           lineCap: 'round',
           lineJoin: 'round'
@@ -296,7 +302,7 @@ function buildNativeLeafletHtml(
           }
         });
 
-        // Midpoint Route Time Badge
+        // Midpoint Route Time Badge - Elevated with pointer so route remains visible
         if (coords.length > 2) {
           var midIdx = Math.floor(coords.length / 2);
           var midPt = coords[midIdx];
@@ -306,7 +312,7 @@ function buildNativeLeafletHtml(
           var altBadgeIcon = L.divIcon({
             className: '',
             html: '<div class="simple-route-badge alt-route-badge">' + badgeLabel + '</div>',
-            iconAnchor: [30, 12]
+            iconAnchor: [30, 20]
           });
 
           var altMarker = L.marker(midPt, { icon: altBadgeIcon, zIndexOffset: 200 }).addTo(routeLayerGroup);
@@ -318,18 +324,18 @@ function buildNativeLeafletHtml(
         }
       });
 
-      // 2. Render Active Selected Route (Clean Solid Polyline - No Glow)
+      // 2. Render Active Selected Route (Clean Solid Polyline)
       if (selRoute && activeCoords.length > 1) {
-        // Subtle outer border line for contrast
+        // High contrast casing
         L.polyline(activeCoords, {
-          color: '#FFFFFF',
+          color: '#080A0D',
           weight: 8,
-          opacity: 0.9,
+          opacity: 0.95,
           lineCap: 'round',
           lineJoin: 'round'
         }).addTo(routeLayerGroup);
 
-        // Solid Active Line (Navigation Blue)
+        // Solid Active Line (Navigation Electric Blue)
         L.polyline(activeCoords, {
           color: '#2563EB',
           weight: 5.5,
@@ -338,7 +344,7 @@ function buildNativeLeafletHtml(
           lineJoin: 'round'
         }).addTo(routeLayerGroup);
 
-        // Midpoint Active Route ETA Badge
+        // Midpoint Active Route ETA Badge - Elevated with pointer
         var midIdx = Math.floor(activeCoords.length / 2);
         var midPt = activeCoords[midIdx];
         var bestBadgeHtml = '<div class="simple-route-badge active-route-badge">' +
@@ -349,7 +355,7 @@ function buildNativeLeafletHtml(
         var bestIcon = L.divIcon({
           className: '',
           html: bestBadgeHtml,
-          iconAnchor: [50, 14]
+          iconAnchor: [50, 20]
         });
         L.marker(midPt, { icon: bestIcon, zIndexOffset: 500 }).addTo(routeLayerGroup);
       }
@@ -363,7 +369,7 @@ function buildNativeLeafletHtml(
         var originIcon = L.divIcon({
           className: '',
           html: '<div class="clean-pin-marker origin-pin-bg">A</div>',
-          iconAnchor: [13, 13]
+          iconAnchor: [14, 14]
         });
         L.marker(startPt, { icon: originIcon, zIndexOffset: 600 }).addTo(pinLayerGroup);
 
@@ -371,7 +377,7 @@ function buildNativeLeafletHtml(
         var destIcon = L.divIcon({
           className: '',
           html: '<div class="clean-pin-marker dest-pin-bg">B</div>',
-          iconAnchor: [13, 13]
+          iconAnchor: [14, 14]
         });
         L.marker(endPt, { icon: destIcon, zIndexOffset: 600 }).addTo(pinLayerGroup);
 
@@ -384,7 +390,7 @@ function buildNativeLeafletHtml(
     function renderVehicle(lat, lon, heading, navigating) {
       if (!map) return;
       var puckHtml = '<div class="vehicle-marker-wrapper">' +
-        '<div class="vehicle-core-dot" style="transform: rotate(' + heading + 'deg);">' +
+        '<div class="vehicle-core-dot" style="transform: rotate(' + (heading || 0) + 'deg);">' +
           '<div class="vehicle-arrow-tip"></div>' +
         '</div>' +
       '</div>';
@@ -392,8 +398,8 @@ function buildNativeLeafletHtml(
       var puckIcon = L.divIcon({
         className: '',
         html: puckHtml,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
       });
 
       if (vehicleMarker) {
@@ -404,7 +410,8 @@ function buildNativeLeafletHtml(
       }
 
       if (navigating) {
-        map.setView([lat, lon], 16, { animate: true });
+        // Pan smoothly to follow vehicle coordinates without overriding user manual zoom!
+        map.panTo([lat, lon], { animate: true, duration: 0.6 });
       }
     }
 
@@ -585,8 +592,6 @@ export const CockpitMap: React.FC<{
   const puckMarkerRef = useRef<any>(null);
   const hasFittedRef = useRef<boolean>(false);
 
-  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
-  const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [useFallbackSvg, setUseFallbackSvg] = useState(false);
 
   const currentLat = useNavigationStore(s => s.currentLat);
@@ -606,40 +611,6 @@ export const CockpitMap: React.FC<{
     () => selectedRoute?.coordinates ?? [],
     [selectedRoute]
   );
-
-  const currentLayer = MAP_LAYERS[activeLayerIndex];
-
-  // Select Map Layer
-  const handleSelectLayer = useCallback((index: number) => {
-    setActiveLayerIndex(index);
-    setShowLayerMenu(false);
-    const cfg = MAP_LAYERS[index];
-
-    if (Platform.OS === 'web' && mapRef.current) {
-      if (baseTileRef.current) mapRef.current.removeLayer(baseTileRef.current);
-      if (labelTileRef.current) mapRef.current.removeLayer(labelTileRef.current);
-
-      const L = (window as any)?.L;
-      if (L) {
-        baseTileRef.current = L.tileLayer(cfg.url, {
-          maxZoom: cfg.maxZoom || 19,
-          subdomains: cfg.subdomains || 'abcd'
-        }).addTo(mapRef.current);
-
-        if (cfg.labelUrl) {
-          labelTileRef.current = L.tileLayer(cfg.labelUrl, {
-            maxZoom: cfg.maxZoom || 19,
-            subdomains: cfg.subdomains || 'abcd',
-            pane: 'markerPane'
-          }).addTo(mapRef.current);
-        }
-      }
-    } else if (webViewRef.current) {
-      webViewRef.current.injectJavaScript(
-        `if (window.setMapLayerConfig) window.setMapLayerConfig('${JSON.stringify(cfg)}'); true;`
-      );
-    }
-  }, []);
 
   // Recenter map
   const handleRecenter = useCallback(() => {
@@ -713,22 +684,20 @@ export const CockpitMap: React.FC<{
         attributionControl: false,
         center: [currentLat, currentLon],
         zoom: 13,
-        preferCanvas: true
+        preferCanvas: true,
+        fadeAnimation: false,
+        markerZoomAnimation: true
       });
 
-      const cfg = MAP_LAYERS[activeLayerIndex];
+      const cfg = STREETS_LAYER;
       baseTileRef.current = L.tileLayer(cfg.url, {
-        maxZoom: cfg.maxZoom || 19,
-        subdomains: cfg.subdomains || 'abcd'
+        maxZoom: cfg.maxZoom || 20,
+        subdomains: cfg.subdomains || 'abcd',
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        updateInterval: 30,
+        keepBuffer: 6
       }).addTo(map);
-
-      if (cfg.labelUrl) {
-        labelTileRef.current = L.tileLayer(cfg.labelUrl, {
-          maxZoom: cfg.maxZoom || 19,
-          subdomains: cfg.subdomains || 'abcd',
-          pane: 'markerPane'
-        }).addTo(map);
-      }
 
       routeLayerRef.current = L.layerGroup().addTo(map);
       pinLayerRef.current = L.layerGroup().addTo(map);
@@ -779,8 +748,8 @@ export const CockpitMap: React.FC<{
 
       // Clean Solid Line
       const poly = L.polyline(coords, {
-        color: '#94A3B8',
-        weight: 4,
+        color: '#64748B',
+        weight: 4.5,
         opacity: 0.75,
         lineCap: 'round',
         lineJoin: 'round'
@@ -798,7 +767,7 @@ export const CockpitMap: React.FC<{
         const altBadgeIcon = L.divIcon({
           className: '',
           html: `<div class="simple-route-badge alt-route-badge">${badgeLabel}</div>`,
-          iconAnchor: [30, 12]
+          iconAnchor: [30, 20]
         });
 
         const altMarker = L.marker(midPt, { icon: altBadgeIcon, zIndexOffset: 200 }).addTo(routeLayerRef.current);
@@ -808,16 +777,16 @@ export const CockpitMap: React.FC<{
 
     // 2. Selected Active Route (Clean Solid Polyline - No Glow)
     if (activeCoords.length > 1) {
-      // Subtle white outline casing for high contrast on streets
+      // Subtle high-contrast casing
       L.polyline(activeCoords, {
-        color: '#FFFFFF',
+        color: '#080A0D',
         weight: 8,
-        opacity: 0.9,
+        opacity: 0.95,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(routeLayerRef.current);
 
-      // Solid Navigation Blue Line
+      // Solid Navigation Electric Blue Line
       L.polyline(activeCoords, {
         color: '#2563EB',
         weight: 5.5,
@@ -826,10 +795,10 @@ export const CockpitMap: React.FC<{
         lineJoin: 'round'
       }).addTo(routeLayerRef.current);
 
-      // Midpoint Active Route ETA Badge
-      const midIdx = Math.floor(activeCoords.length / 2);
-      const midPt = activeCoords[midIdx];
-      const bestBadgeHtml = `<div class="simple-route-badge active-route-badge">` +
+      // Midpoint Active Route ETA Badge - Elevated with pointer
+      var midIdx = Math.floor(activeCoords.length / 2);
+      var midPt = activeCoords[midIdx];
+      var bestBadgeHtml = `<div class="simple-route-badge active-route-badge">` +
         `<span class="badge-time">${sel.predicted_eta_p50} min</span>` +
         `<span>(${sel.distance_km} km)</span>` +
       `</div>`;
@@ -837,7 +806,7 @@ export const CockpitMap: React.FC<{
       const bestIcon = L.divIcon({
         className: '',
         html: bestBadgeHtml,
-        iconAnchor: [50, 14]
+        iconAnchor: [50, 20]
       });
       L.marker(midPt, { icon: bestIcon, zIndexOffset: 500 }).addTo(routeLayerRef.current);
 
@@ -848,7 +817,7 @@ export const CockpitMap: React.FC<{
       const originIcon = L.divIcon({
         className: '',
         html: `<div class="clean-pin-marker origin-pin-bg">A</div>`,
-        iconAnchor: [13, 13]
+        iconAnchor: [14, 14]
       });
       L.marker(startPt, { icon: originIcon, zIndexOffset: 600 }).addTo(pinLayerRef.current);
 
@@ -875,7 +844,7 @@ export const CockpitMap: React.FC<{
 
     const puckHtml = `
       <div class="vehicle-marker-wrapper">
-        <div class="vehicle-core-dot" style="transform: rotate(${headingDeg}deg);">
+        <div class="vehicle-core-dot" style="transform: rotate(${headingDeg || 0}deg);">
           <div class="vehicle-arrow-tip"></div>
         </div>
       </div>`;
@@ -898,22 +867,25 @@ export const CockpitMap: React.FC<{
     }
 
     if (isNavigating) {
-      map.setView([currentLat, currentLon], 16, { animate: true });
+      // Pan smoothly to follow vehicle without overriding user's manual zoom level!
+      map.panTo([currentLat, currentLon], { animate: true, duration: 0.6 });
     }
   }, [currentLat, currentLon, headingDeg, isNavigating]);
 
+  // Build Native HTML only when routes or navigation state change (fixed to Streets map)
   const nativeHtml = useMemo(() => {
     if (Platform.OS === 'web' || !WebViewComponent) return '';
+    const initLat = coordinates.length > 0 ? coordinates[0][0] : currentLat;
+    const initLon = coordinates.length > 0 ? coordinates[0][1] : currentLon;
     return buildNativeLeafletHtml(
       allRoutes,
       selectedRouteId,
-      currentLat,
-      currentLon,
-      headingDeg,
-      isNavigating,
-      currentLayer
+      initLat,
+      initLon,
+      headingDeg || 0,
+      isNavigating
     );
-  }, [allRoutes, selectedRouteId, currentLat, currentLon, headingDeg, isNavigating, currentLayer]);
+  }, [allRoutes, selectedRouteId, isNavigating]);
 
   return (
     <View style={[styles.container, style]}>
@@ -930,6 +902,15 @@ export const CockpitMap: React.FC<{
           originWhitelist={['*']}
           javaScriptEnabled={true}
           domStorageEnabled={true}
+          androidHardwareAccelerationDisabled={false}
+          androidLayerType="hardware"
+          renderToHardwareTextureAndroid={true}
+          overScrollMode="never"
+          scrollEnabled={false}
+          cacheEnabled={true}
+          cacheMode="LOAD_DEFAULT"
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
           onMessage={(e: any) => {
             try {
               const d = JSON.parse(e.nativeEvent.data);
@@ -975,18 +956,6 @@ export const CockpitMap: React.FC<{
           <Maximize2 size={16} color={colors.text.bright} strokeWidth={2.2} />
         </TouchableOpacity>
 
-        {/* Layer Switcher Button */}
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => setShowLayerMenu(prev => !prev)}
-          style={[styles.controlButton, showLayerMenu && styles.controlButtonActive]}
-          hitSlop={spacing.hitSlop}
-          accessibilityRole="button"
-          accessibilityLabel="Toggle map layer selector"
-        >
-          <Layers size={17} color={showLayerMenu ? colors.primaryBright : colors.text.bright} strokeWidth={2.2} />
-        </TouchableOpacity>
-
         {/* Zoom Controls Pill */}
         <View style={styles.zoomPill}>
           <TouchableOpacity
@@ -1013,51 +982,7 @@ export const CockpitMap: React.FC<{
             <Minus size={16} color={colors.text.bright} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
-
-        {/* Compass Widget */}
-        <View style={styles.compassCard} accessibilityLabel={`Heading ${Math.round(headingDeg)} degrees`}>
-          <Compass
-            size={16}
-            color={colors.dangerBright}
-            style={{ transform: [{ rotate: `${-headingDeg}deg` }] }}
-          />
-        </View>
       </View>
-
-      {/* Map Layer Selector Floating Modal */}
-      {showLayerMenu && (
-        <View style={styles.layerSelectorModal}>
-          <View style={styles.layerModalHeader}>
-            <Text style={styles.layerModalTitle}>MAP LAYERS</Text>
-            <TouchableOpacity onPress={() => setShowLayerMenu(false)}>
-              <Text style={styles.layerModalClose}>Close</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.layerGrid}>
-            {MAP_LAYERS.map((layer, idx) => {
-              const isSelected = activeLayerIndex === idx;
-              return (
-                <TouchableOpacity
-                  key={layer.id}
-                  activeOpacity={0.8}
-                  onPress={() => handleSelectLayer(idx)}
-                  style={[styles.layerTileOption, isSelected && styles.layerTileOptionSelected]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Switch map layer to ${layer.name}`}
-                >
-                  <View style={styles.layerTileHeader}>
-                    <Text style={[styles.layerTileName, isSelected && styles.layerTileNameSelected]}>
-                      {layer.name}
-                    </Text>
-                    {isSelected && <Check size={14} color={colors.primaryBright} strokeWidth={3} />}
-                  </View>
-                  <Text style={styles.layerTileBadge}>{layer.badge}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -1082,10 +1007,10 @@ const styles = StyleSheet.create({
   },
   floatingControlsIsland: {
     position: 'absolute',
-    top: 135,
+    top: 310,
     right: 12,
     zIndex: 35,
-    gap: 7,
+    gap: 8,
     alignItems: 'center'
   },
   controlButton: {
@@ -1101,10 +1026,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 8
-  },
-  controlButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(200, 205, 212, 0.16)'
   },
   zoomPill: {
     width: 40,
@@ -1135,84 +1056,5 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center'
-  },
-  compassCard: {
-    width: 40,
-    height: 36,
-    borderRadius: 13,
-    backgroundColor: 'rgba(17, 21, 26, 0.92)',
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  layerSelectorModal: {
-    position: 'absolute',
-    top: 135,
-    right: 58,
-    width: 200,
-    backgroundColor: 'rgba(22, 27, 34, 0.96)',
-    borderRadius: spacing.radius.xl,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
-    padding: spacing.md,
-    zIndex: 50,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14
-  },
-  layerModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border
-  },
-  layerModalTitle: {
-    fontSize: 10,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.bright,
-    letterSpacing: 0.5
-  },
-  layerModalClose: {
-    fontSize: 11,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary
-  },
-  layerGrid: {
-    gap: 6
-  },
-  layerTileOption: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: spacing.radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border
-  },
-  layerTileOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint
-  },
-  layerTileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  layerTileName: {
-    fontSize: 12,
-    fontWeight: typography.weights.bold,
-    color: colors.text.primary
-  },
-  layerTileNameSelected: {
-    color: colors.primaryBright
-  },
-  layerTileBadge: {
-    fontSize: 9,
-    color: colors.text.muted,
-    marginTop: 1
   }
 });

@@ -139,7 +139,7 @@ export const InsightsScreen: React.FC = () => {
       emptyTitle="No active trip"
       emptyMessage="Calculate a corridor to see departure planning and reliability bounds."
       emptyIcon={<Sparkles size={20} color={colors.text.secondary} />}
-      isStale={!!routingData?.is_fallback}
+      isStale={!!routingData?.is_fallback && routingData?.routing_provenance !== 'DEMO'}
       lastUpdatedAt={routingData?.fetched_at}
       onRetry={retry}
       retryLabel="Retry"

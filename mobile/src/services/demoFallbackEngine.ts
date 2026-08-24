@@ -906,6 +906,265 @@ export const SIMULATED_CORRIDORS: Record<string, SimulatedCorridorPreset> = {
         ]
       }
     ]
+  },
+  singapore_changi_cbd: {
+    id: 'singapore_changi_cbd',
+    name: 'Marina Bay CBD to Changi Airport',
+    city: 'Singapore',
+    origin: { name: 'Marina Bay Financial Centre', lat: 1.2792, lon: 103.8536 },
+    destination: { name: 'Singapore Changi Airport (SIN)', lat: 1.3562, lon: 103.9870 },
+    explanation: {
+      text: 'Via East Coast Parkway (ECP) is recommended as the Best Route for optimal coastal flow, achieving a 94% on-time reliability score with minimal delay (21.0 min median ETA) directly into Terminal 3.',
+      provenance: 'TIER_3_DEMO_SIMULATION (Zero-Hallucination Verified)',
+      validation_status: 'VALIDATED',
+      validator_checks: {
+        layer_1_numbers: 'PASSED (19.8 km, 21.0 min matches forecast p50)',
+        layer_2_facts: 'PASSED (ECP expressway coastal lanes verified)',
+        layer_3_decisions: 'PASSED (Balanced coastal throughput confirmed)'
+      }
+    },
+    routes: [
+      {
+        id: 'route_sg_ecp',
+        name: 'Via East Coast Parkway (ECP)',
+        summary: 'Fast coastal expressway direct to Changi (⭐ Best Route)',
+        distance_km: 19.8,
+        base_duration_min: 21.0,
+        live_duration_min: 21.5,
+        predicted_eta_p10: 19.0,
+        predicted_eta_p50: 21.0,
+        predicted_eta_p90: 25.0,
+        forecast_uncertainty_spread: 6.0,
+        toll_cost: 2.5,
+        avg_congestion: 22.0,
+        congestion_category: 'FREEFLOW',
+        trend: 'STABLE',
+        trend_delta_pct: 1.2,
+        trend_description: 'Smooth coastal traffic flow along East Coast Parkway.',
+        forecast_20m_p50: 23.0,
+        route_health: {
+          health_score: 94,
+          health_label: 'OPTIMAL'
+        },
+        reliability: {
+          reliability_score: 0.94,
+          reliability_label: 'HIGH_RELIABILITY',
+          p80_duration_min: 22.5,
+          p95_duration_min: 25.0,
+          buffer_index: 0.10
+        },
+        has_incident: false,
+        score: 95.0,
+        is_fastest: true,
+        is_best: true,
+        coordinates: [
+          [1.2792, 103.8536],
+          [1.2950, 103.8750],
+          [1.3050, 103.9050],
+          [1.3250, 103.9450],
+          [1.3450, 103.9700],
+          [1.3562, 103.9870]
+        ],
+        segments: [
+          {
+            id: 'SEG_SHENTON_WAY',
+            name: 'Marina Boulevard / ECP On-Ramp',
+            length_km: 2.2,
+            freeflow_speed: 60.0,
+            current_speed: 54.0,
+            congestion: 25.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 26.0,
+            incident_flag: 0,
+            history_20m: [26, 25, 25, 25]
+          },
+          {
+            id: 'SEG_ECP_COASTAL',
+            name: 'East Coast Parkway Arterial',
+            length_km: 14.2,
+            freeflow_speed: 90.0,
+            current_speed: 84.0,
+            congestion: 20.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 22.0,
+            incident_flag: 0,
+            history_20m: [20, 20, 21, 20]
+          },
+          {
+            id: 'SEG_AIRPORT_BOULEVARD',
+            name: 'Airport Boulevard / Terminal 3',
+            length_km: 3.4,
+            freeflow_speed: 70.0,
+            current_speed: 62.0,
+            congestion: 22.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 24.0,
+            incident_flag: 0,
+            history_20m: [24, 23, 22, 22]
+          }
+        ]
+      },
+      {
+        id: 'route_sg_pie',
+        name: 'Via Pan Island Expressway (PIE)',
+        summary: 'Central expressway corridor',
+        distance_km: 22.4,
+        base_duration_min: 23.5,
+        live_duration_min: 24.0,
+        predicted_eta_p10: 21.0,
+        predicted_eta_p50: 23.5,
+        predicted_eta_p90: 28.0,
+        forecast_uncertainty_spread: 7.0,
+        toll_cost: 2.0,
+        avg_congestion: 32.0,
+        congestion_category: 'MODERATE',
+        trend: 'STABLE',
+        trend_delta_pct: 2.0,
+        trend_description: 'PIE Eastbound flowing steadily with minor bottleneck at Eunos.',
+        forecast_20m_p50: 25.0,
+        route_health: {
+          health_score: 86,
+          health_label: 'EXCELLENT'
+        },
+        reliability: {
+          reliability_score: 0.88,
+          reliability_label: 'HIGH_RELIABILITY',
+          p80_duration_min: 25.0,
+          p95_duration_min: 28.0,
+          buffer_index: 0.16
+        },
+        has_incident: false,
+        score: 88.0,
+        is_fastest: false,
+        is_best: false,
+        coordinates: [
+          [1.2792, 103.8536],
+          [1.3100, 103.8500],
+          [1.3350, 103.8850],
+          [1.3500, 103.9350],
+          [1.3620, 103.9650],
+          [1.3562, 103.9870]
+        ],
+        segments: [
+          {
+            id: 'SEG_KPE_TUNNEL',
+            name: 'Kallang-Paya Lebar Tunnel',
+            length_km: 4.8,
+            freeflow_speed: 80.0,
+            current_speed: 70.0,
+            congestion: 28.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 30.0,
+            incident_flag: 0,
+            history_20m: [26, 27, 28, 28]
+          },
+          {
+            id: 'SEG_PIE_EAST',
+            name: 'Pan Island Expressway East',
+            length_km: 14.1,
+            freeflow_speed: 90.0,
+            current_speed: 75.0,
+            congestion: 34.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 36.0,
+            incident_flag: 0,
+            history_20m: [32, 33, 34, 34]
+          },
+          {
+            id: 'SEG_CHANGI_FLYOVER',
+            name: 'Changi South Flyover',
+            length_km: 3.5,
+            freeflow_speed: 70.0,
+            current_speed: 60.0,
+            congestion: 28.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 30.0,
+            incident_flag: 0,
+            history_20m: [28, 28, 28, 28]
+          }
+        ]
+      },
+      {
+        id: 'route_sg_nicoll',
+        name: 'Via Nicoll Highway & Sims Ave',
+        summary: 'Scenic city arterial route bypassing expressway ERP tolls',
+        distance_km: 21.1,
+        base_duration_min: 27.0,
+        live_duration_min: 28.0,
+        predicted_eta_p10: 25.0,
+        predicted_eta_p50: 27.5,
+        predicted_eta_p90: 34.0,
+        forecast_uncertainty_spread: 9.0,
+        toll_cost: 0.0,
+        avg_congestion: 40.0,
+        congestion_category: 'MODERATE',
+        trend: 'STABLE',
+        trend_delta_pct: 3.5,
+        trend_description: 'Traffic signals along Upper Changi Road with light queueing.',
+        forecast_20m_p50: 30.0,
+        route_health: {
+          health_score: 78,
+          health_label: 'GOOD'
+        },
+        reliability: {
+          reliability_score: 0.82,
+          reliability_label: 'HIGH_RELIABILITY',
+          p80_duration_min: 30.0,
+          p95_duration_min: 34.0,
+          buffer_index: 0.22
+        },
+        has_incident: false,
+        score: 82.0,
+        is_fastest: false,
+        is_best: false,
+        coordinates: [
+          [1.2792, 103.8536],
+          [1.2980, 103.8620],
+          [1.3160, 103.8890],
+          [1.3400, 103.9350],
+          [1.3520, 103.9680],
+          [1.3562, 103.9870]
+        ],
+        segments: [
+          {
+            id: 'SEG_NICOLL_HWY',
+            name: 'Nicoll Highway',
+            length_km: 4.5,
+            freeflow_speed: 60.0,
+            current_speed: 48.0,
+            congestion: 38.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 40.0,
+            incident_flag: 0,
+            history_20m: [36, 37, 38, 38]
+          },
+          {
+            id: 'SEG_SIMS_AVE',
+            name: 'Sims Ave & Geylang Link',
+            length_km: 7.8,
+            freeflow_speed: 50.0,
+            current_speed: 38.0,
+            congestion: 44.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 46.0,
+            incident_flag: 0,
+            history_20m: [42, 43, 44, 44]
+          },
+          {
+            id: 'SEG_UPPER_CHANGI',
+            name: 'Upper Changi Road East',
+            length_km: 8.8,
+            freeflow_speed: 60.0,
+            current_speed: 50.0,
+            congestion: 36.0,
+            trend: 'STABLE',
+            forecast_20m_p50: 38.0,
+            incident_flag: 0,
+            history_20m: [34, 35, 36, 36]
+          }
+        ]
+      }
+    ]
   }
 };
 
