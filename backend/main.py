@@ -1,15 +1,28 @@
 import sys
 import os
+import types
 import logging
 import sqlite3
 from pathlib import Path
 
 # Ensure root and backend directory are in sys.path for Vercel serverless runtime
 _current_dir = Path(__file__).resolve().parent
-_root_dir = _current_dir.parent
+if _current_dir.name == "backend":
+    _root_dir = _current_dir.parent
+else:
+    _root_dir = _current_dir
+
 for _p in [str(_root_dir), str(_current_dir)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+# Ensure 'backend' package is resolvable even when Vercel runs main.py from inside backend directory
+try:
+    import backend
+except ImportError:
+    backend_pkg = types.ModuleType("backend")
+    backend_pkg.__path__ = [str(_current_dir)]
+    sys.modules["backend"] = backend_pkg
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Security, Depends
 from fastapi.security.api_key import APIKeyHeader
