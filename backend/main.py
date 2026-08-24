@@ -43,7 +43,12 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
 async def lifespan(app: FastAPI):
     logger.info("Initializing Predictive Traffic Intelligence Navigation System...")
     init_db()
-    logger.info("Database schema verified and initialized.")
+    try:
+        from backend.database.seed_data import seed_database
+        seed_database()
+        logger.info("Database verified and seeded successfully.")
+    except Exception as e:
+        logger.warning(f"Database auto-seeding notice: {e}")
     yield
     logger.info("Shutting down backend services.")
 

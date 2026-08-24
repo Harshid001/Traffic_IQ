@@ -13,15 +13,20 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
     
     # Security & CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://localhost:8000",
-        "http://localhost:8005",
-        "http://127.0.0.1:8005",
-    ]
+    ALLOWED_ORIGINS: List[str] = (
+        [o.strip() for o in os.getenv("ALLOWED_ORIGINS").split(",") if o.strip()]
+        if os.getenv("ALLOWED_ORIGINS")
+        else [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://localhost:8000",
+            "http://localhost:8005",
+            "http://127.0.0.1:8005",
+            "*",
+        ]
+    )
     API_KEY: str = os.getenv("TRAFFICIQ_API_KEY", "trafficiq-dev-key")
     REQUIRE_API_KEY: bool = os.getenv("REQUIRE_API_KEY", "false").lower() in ("true", "1", "yes")
     
