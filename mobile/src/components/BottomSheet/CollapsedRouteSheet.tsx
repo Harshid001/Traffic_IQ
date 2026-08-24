@@ -269,35 +269,35 @@ export const CollapsedRouteSheet = React.memo(CollapsedRouteSheetBase);
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1,
-    borderColor: colors.glass.strokeStrong,
-    borderRadius: 22,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.md,
+    backgroundColor: 'rgba(17, 21, 26, 0.95)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 14,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
-    shadowRadius: 18
+    shadowRadius: 20
   },
   dragBarContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 18,
+    height: 16,
     marginBottom: 4
   },
   dragBar: {
-    width: 36,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.borderStrong
+    backgroundColor: 'rgba(255, 255, 255, 0.18)'
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: 10,
     gap: spacing.md
   },
   summaryInfo: {
@@ -306,46 +306,46 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: 2
+    gap: 6,
+    marginBottom: 4
   },
   bestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: 'rgba(200, 205, 212, 0.15)',
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1
+    borderColor: 'rgba(200, 205, 212, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5
   },
   bestBadgeText: {
     fontSize: 9.5,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   fastestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.fastestSoft,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
-    borderColor: colors.fastestBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5
   },
   fastestBadgeText: {
     fontSize: 9.5,
     fontWeight: typography.weights.bold,
-    color: colors.fastest
+    color: colors.fastestBright
   },
   altBadge: {
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5
   },
   altBadgeText: {
     fontSize: 9.5,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   etaRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.sm,
+    gap: 8,
     marginBottom: 2
   },
   etaBig: {
@@ -370,19 +370,19 @@ const styles = StyleSheet.create({
     color: colors.text.bright
   },
   etaUnit: {
-    fontSize: typography.sizes.caption,
-    fontWeight: typography.weights.semibold,
-    color: colors.primary
+    fontSize: 12,
+    fontWeight: typography.weights.bold,
+    color: colors.primaryBright
   },
   distBig: {
-    fontSize: typography.sizes.body,
+    fontSize: 14,
     fontWeight: typography.weights.bold,
     color: colors.text.secondary
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs
+    gap: 6
   },
   metaText: {
     fontSize: 10.5,
@@ -401,9 +401,9 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold
   },
   expandButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -415,20 +415,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderRadius: spacing.radius.lg,
-    paddingVertical: spacing.sm,
-    minHeight: 46,
-    gap: spacing.xs,
+    borderRadius: 14,
+    paddingVertical: 11,
+    minHeight: 48,
+    gap: 8,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8
+    shadowOpacity: 0.4,
+    shadowRadius: 10
   },
   startButtonLoading: {
     opacity: 0.8
   },
   startButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: typography.weights.extrabold,
     color: colors.text.onAccent,
     letterSpacing: 0.3
@@ -437,29 +437,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs
+    marginBottom: 6
   },
   progressText: {
     fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    letterSpacing: 0.5
+    color: colors.primaryBright,
+    letterSpacing: 0.6
   },
   arriveText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: typography.weights.bold,
-    color: colors.text.muted
+    color: colors.text.secondary
   },
   progressTrack: {
-    height: 6,
-    backgroundColor: colors.card,
+    height: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: spacing.md
+    marginBottom: 12
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryBright,
     borderRadius: 3
   },
   navBottomRow: {
@@ -468,18 +468,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   etaCol: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
   },
   routePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 5,
+    marginTop: 2
   },
   routeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary
+    backgroundColor: colors.primaryBright
   },
   routeName: {
     fontSize: 11,
@@ -489,45 +491,45 @@ const styles = StyleSheet.create({
   playbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs
+    gap: 6
   },
   alertTriggerBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.fastestFaint,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderWidth: 1,
-    borderColor: colors.fastestBorder,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
     alignItems: 'center',
     justifyContent: 'center'
   },
   speedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
     backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.sm,
+    borderColor: colors.borderStrong,
+    borderRadius: 12,
+    paddingHorizontal: 8,
     height: 36
   },
   speedToggleText: {
     fontSize: 11,
-    fontWeight: typography.weights.bold,
-    color: colors.fastest
+    fontWeight: typography.weights.extrabold,
+    color: colors.fastestBright
   },
   playButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 6
+    shadowRadius: 8
   },
   errorRow: {
     flexDirection: 'row',

@@ -37,13 +37,13 @@ const ManeuverHUDBase: React.FC = () => {
   const toggleMute = useNavigationStore(s => s.toggleMute);
   const stopNavigation = useNavigationStore(s => s.stopNavigation);
   const upcomingSegment = useNavigationStore(s => s.upcomingSegment);
-  const { labelMaxWidth, dialogMaxWidth } = useLayout();
+  const { dialogMaxWidth } = useLayout();
 
   const [hazardModalOpen, setHazardModalOpen] = useState(false);
   const [reportedHazard, setReportedHazard] = useState<string | null>(null);
 
   const renderManeuverIcon = useCallback(() => {
-    const iconProps = { size: 28, color: colors.primaryBright, strokeWidth: 2.6 } as const;
+    const iconProps = { size: 26, color: colors.primaryBright, strokeWidth: 2.8 } as const;
     switch (currentManeuver?.type) {
       case 'turn-right':
         return <CornerUpRight {...iconProps} />;
@@ -107,18 +107,18 @@ const ManeuverHUDBase: React.FC = () => {
         <View style={styles.actionCol}>
           {/* Quick Hazard Report Button */}
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.8}
             onPress={() => setHazardModalOpen(true)}
             style={[styles.actionButton, styles.hazardButton]}
             hitSlop={spacing.hitSlop}
             accessibilityRole="button"
             accessibilityLabel="Report road hazard"
           >
-            <AlertTriangle size={17} color={colors.warningBright} />
+            <AlertTriangle size={16} color={colors.warningBright} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.8}
             onPress={toggleMute}
             style={styles.actionButton}
             hitSlop={spacing.hitSlop}
@@ -126,21 +126,21 @@ const ManeuverHUDBase: React.FC = () => {
             accessibilityLabel={isMuted ? 'Unmute voice guidance' : 'Mute voice guidance'}
           >
             {isMuted ? (
-              <VolumeX size={17} color={colors.text.muted} />
+              <VolumeX size={16} color={colors.text.muted} />
             ) : (
-              <Volume2 size={17} color={colors.primary} />
+              <Volume2 size={16} color={colors.primaryBright} />
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.8}
             onPress={stopNavigation}
             style={[styles.actionButton, styles.exitButton]}
             hitSlop={spacing.hitSlop}
             accessibilityRole="button"
             accessibilityLabel="End navigation trip"
           >
-            <X size={17} color={colors.dangerBright} strokeWidth={2.5} />
+            <X size={16} color={colors.dangerBright} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
       </View>
@@ -164,7 +164,7 @@ const ManeuverHUDBase: React.FC = () => {
         </View>
 
         {upcomingSegment && (
-          <View style={[styles.segmentPill, { maxWidth: labelMaxWidth }]}>
+          <View style={styles.segmentPill}>
             <View
               style={[
                 styles.segmentDot,
@@ -182,18 +182,29 @@ const ManeuverHUDBase: React.FC = () => {
               </Text>
             </View>
             {upcomingCongestion !== null && (
-              <Text
+              <View
                 style={[
-                  styles.segmentCong,
+                  styles.congBadge,
                   upcomingCongestion > 60
-                    ? { color: colors.dangerBright }
+                    ? styles.congBadgeHeavy
                     : upcomingCongestion > 30
-                    ? { color: colors.warningBright }
-                    : { color: colors.primaryBright }
+                    ? styles.congBadgeModerate
+                    : styles.congBadgeLight
                 ]}
               >
-                {upcomingCongestion}%
-              </Text>
+                <Text
+                  style={[
+                    styles.segmentCong,
+                    upcomingCongestion > 60
+                      ? { color: colors.dangerBright }
+                      : upcomingCongestion > 30
+                      ? { color: colors.warningBright }
+                      : { color: colors.primaryBright }
+                  ]}
+                >
+                  {upcomingCongestion}%
+                </Text>
+              </View>
             )}
           </View>
         )}
@@ -260,36 +271,36 @@ export const ManeuverHUD = React.memo(ManeuverHUDBase);
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.sm
+    gap: 8
   },
   hudBanner: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(17, 21, 26, 0.96)',
     borderWidth: 1.5,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.xl,
-    padding: spacing.md,
+    borderColor: 'rgba(200, 205, 212, 0.35)',
+    borderRadius: 20,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16
+    gap: 10,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14
   },
   leftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 10,
     flex: 1
   },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: spacing.radius.lg,
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.primaryBorder,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(200, 205, 212, 0.18)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(200, 205, 212, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
@@ -298,77 +309,80 @@ const styles = StyleSheet.create({
     shadowRadius: 6
   },
   guidanceCol: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
   },
   distRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 6,
     marginBottom: 2
   },
   distText: {
-    fontSize: typography.sizes.h2,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: typography.weights.extrabold,
-    color: colors.primaryBright
+    color: colors.primaryBright,
+    flexShrink: 0
   },
   roadPill: {
-    backgroundColor: colors.card,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    maxWidth: 120
   },
   roadText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.bold,
     color: colors.text.secondary
   },
   instructionText: {
-    fontSize: typography.sizes.body,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: typography.weights.bold,
     color: colors.text.bright
   },
   actionCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs
+    gap: 5
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: spacing.radius.md,
-    backgroundColor: colors.card,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: 'rgba(22, 27, 34, 0.90)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center'
   },
   hazardButton: {
-    backgroundColor: colors.warningSoft,
-    borderColor: colors.warningBorder
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.35)'
   },
   exitButton: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.dangerBorder
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.35)'
   },
   telemetryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: 8
   },
   speedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: spacing.radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(17, 21, 26, 0.94)',
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    gap: spacing.md,
+    gap: 8,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
@@ -378,14 +392,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start'
   },
   speedLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
     letterSpacing: 0.5
   },
   speedVal: {
-    fontSize: typography.sizes.h3,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 19,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
@@ -393,33 +407,33 @@ const styles = StyleSheet.create({
     color: colors.dangerBright
   },
   speedUnit: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.medium,
     color: colors.text.muted
   },
   speedDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: colors.border
+    height: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)'
   },
   limitCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
-    borderColor: colors.text.bright,
+    borderColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF'
+    backgroundColor: '#FFFFFF'
   },
   limitCircleOver: {
     borderColor: colors.danger,
     backgroundColor: '#FEE2E2'
   },
   limitText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: '#000'
+    color: '#000000'
   },
   limitTextOver: {
     color: colors.danger
@@ -428,36 +442,53 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: spacing.radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(17, 21, 26, 0.94)',
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    gap: spacing.sm
+    gap: 8,
+    minWidth: 0
   },
   segmentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primaryBright
   },
   segmentTextCol: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
   },
   segmentLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
+    color: colors.text.muted,
+    letterSpacing: 0.5
   },
   segmentName: {
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 14,
     fontWeight: typography.weights.bold,
     color: colors.text.bright
   },
+  congBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6
+  },
+  congBadgeLight: {
+    backgroundColor: 'rgba(200, 205, 212, 0.15)'
+  },
+  congBadgeModerate: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)'
+  },
+  congBadgeHeavy: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)'
+  },
   segmentCong: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: typography.weights.extrabold
   },
   modalOverlay: {

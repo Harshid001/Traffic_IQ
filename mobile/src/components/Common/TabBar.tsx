@@ -29,7 +29,7 @@ const TabBarBase: React.FC = () => {
           return (
             <TouchableOpacity
               key={tab.id}
-              activeOpacity={0.82}
+              activeOpacity={0.8}
               onPress={() => setActiveTab(tab.id)}
               style={[styles.tabButton, isActive && styles.tabButtonActive]}
               accessibilityRole="tab"
@@ -38,7 +38,7 @@ const TabBarBase: React.FC = () => {
               hitSlop={6}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Icon size={19} color={isActive ? colors.primaryBright : colors.text.muted} strokeWidth={isActive ? 2.5 : 1.8} />
+                <Icon size={19} color={isActive ? colors.primaryBright : colors.text.muted} strokeWidth={isActive ? 2.6 : 1.9} />
                 {isLiveNav && <View style={styles.liveDot} />}
               </View>
               <Text numberOfLines={1} style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -63,15 +63,15 @@ const styles = StyleSheet.create({
     zIndex: 60
   },
   tabBar: {
-    minHeight: 64,
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 6,
-    paddingVertical: 6,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1,
-    borderColor: colors.glass.strokeStrong,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(17, 21, 26, 0.94)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 24,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
@@ -80,33 +80,33 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 48,
     marginHorizontal: 2,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2
   },
   tabButtonActive: {
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: 'rgba(200, 205, 212, 0.14)',
     borderWidth: 1,
-    borderColor: colors.primaryBorderSoft
+    borderColor: 'rgba(200, 205, 212, 0.35)'
   },
   iconWrap: {
-    width: 34,
-    height: 27,
-    borderRadius: 12,
+    width: 32,
+    height: 25,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   iconWrapActive: {
-    backgroundColor: colors.primarySoft
+    backgroundColor: 'rgba(200, 205, 212, 0.18)'
   },
   liveDot: {
     position: 'absolute',
-    top: 2,
-    right: 4,
+    top: 1,
+    right: 3,
     width: 6,
     height: 6,
     borderRadius: 3,

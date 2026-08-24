@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Navigation, Bell, Sparkles, Bot, MessageSquare } from 'lucide-react-native';
+import { Navigation, Bell, Sparkles, Bot } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { AiChatModal } from '../Copilot/AiChatModal';
@@ -24,13 +24,13 @@ const HeaderBase: React.FC = () => {
       {/* Brand & Live Traffic Status */}
       <View style={styles.brandBlock}>
         <View style={styles.logoBadge}>
-          <Navigation size={17} color={colors.text.onAccent} strokeWidth={2.7} style={{ transform: [{ rotate: '45deg' }] }} />
+          <Navigation size={18} color={colors.text.onAccent} strokeWidth={2.8} style={{ transform: [{ rotate: '45deg' }] }} />
         </View>
         <View style={styles.brandText}>
           <View style={styles.titleRow}>
             <Text style={styles.brandTitle}>Traffic<Text style={styles.brandAccent}>IQ</Text></Text>
             <View style={[styles.statusPill, isLive ? styles.livePill : styles.smartPill]}>
-              {isLive ? <View style={styles.statusDot} /> : <Sparkles size={9} color={colors.primaryBright} />}
+              {isLive ? <View style={styles.statusDot} /> : <Sparkles size={10} color={colors.primaryBright} />}
               <Text style={[styles.statusText, isLive ? styles.liveText : styles.smartText]}>{isLive ? 'LIVE' : 'SMART'}</Text>
             </View>
           </View>
@@ -38,44 +38,37 @@ const HeaderBase: React.FC = () => {
         </View>
       </View>
 
-      {/* AI Copilot Chat Button (Local phi4-mini) */}
+      {/* Modern AI Copilot Pill (Phi-4 mini grounded) */}
       <TouchableOpacity
-        activeOpacity={0.82}
+        activeOpacity={0.8}
         onPress={() => setChatModalVisible(true)}
-        style={styles.aiButton}
+        style={styles.aiPill}
         hitSlop={spacing.hitSlop}
         accessibilityRole="button"
-        accessibilityLabel="Open TrafficIQ AI Copilot chat powered by local phi4-mini model"
-        accessibilityHint="Ask questions about traffic, route delays, bottlenecks, and tolls"
+        accessibilityLabel="Open TrafficIQ AI Copilot chat"
       >
-        <View style={styles.aiIconWrap}>
-          <Bot size={15} color={colors.primaryBright} />
-          <View style={styles.aiDot} />
+        <View style={styles.aiIconBubble}>
+          <Bot size={14} color={colors.primaryBright} strokeWidth={2.4} />
+          <View style={styles.aiPulseDot} />
         </View>
-        <View style={styles.aiTextCol}>
-          <View style={styles.aiLabelRow}>
-            <Text style={styles.aiLabel}>AI COPILOT</Text>
-            <View style={styles.aiModelTag}>
-              <Text style={styles.aiModelTagText}>phi4</Text>
-            </View>
-          </View>
-          <Text numberOfLines={1} style={styles.aiValue}>
-            {isNarrow ? 'Ask AI' : 'Ask Copilot'}
-          </Text>
+        <Text numberOfLines={1} style={styles.aiPillTitle}>
+          Copilot
+        </Text>
+        <View style={styles.modelBadge}>
+          <Text style={styles.modelBadgeText}>phi4</Text>
         </View>
-        {!isNarrow && <Sparkles size={13} color={colors.primary} />}
       </TouchableOpacity>
 
       {/* Safety Alert Notification Center Button */}
       <TouchableOpacity
-        activeOpacity={0.82}
+        activeOpacity={0.8}
         onPress={() => setShowLockScreenModal(true)}
         style={[styles.alertButton, activeAlert && styles.alertButtonActive]}
         hitSlop={spacing.hitSlop}
         accessibilityRole="button"
         accessibilityLabel={activeAlert ? 'Active traffic alert' : 'Traffic alerts'}
       >
-        <Bell size={18} color={activeAlert ? colors.warningBright : colors.text.primary} />
+        <Bell size={18} color={activeAlert ? colors.warningBright : colors.text.primary} strokeWidth={2} />
         {activeAlert && <View style={styles.alertDot} />}
       </TouchableOpacity>
 
@@ -89,12 +82,13 @@ export const Header = React.memo(HeaderBase);
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 66,
-    paddingHorizontal: 12,
+    minHeight: 62,
+    paddingHorizontal: 14,
     gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(17, 21, 26, 0.98)',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     zIndex: 80
@@ -107,14 +101,14 @@ const styles = StyleSheet.create({
   logoBadge: {
     width: 36,
     height: 36,
-    borderRadius: 13,
+    borderRadius: 12,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.32,
-    shadowRadius: 9
+    shadowOpacity: 0.4,
+    shadowRadius: 8
   },
   brandText: {
     marginLeft: 9,
@@ -127,7 +121,7 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     fontSize: 16,
-    lineHeight: 19,
+    lineHeight: 20,
     color: colors.text.bright,
     fontWeight: typography.weights.extrabold,
     letterSpacing: -0.3
@@ -144,30 +138,30 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15
   },
   statusPill: {
-    minHeight: 19,
+    minHeight: 18,
     paddingHorizontal: 6,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3
+    gap: 3.5
   },
   livePill: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primaryBorder
+    backgroundColor: 'rgba(200, 205, 212, 0.15)',
+    borderColor: 'rgba(200, 205, 212, 0.4)'
   },
   smartPill: {
-    backgroundColor: colors.primaryFaint,
-    borderColor: colors.primaryBorderSoft
+    backgroundColor: 'rgba(200, 205, 212, 0.10)',
+    borderColor: 'rgba(200, 205, 212, 0.25)'
   },
   statusDot: {
     width: 5,
     height: 5,
-    borderRadius: 3,
+    borderRadius: 2.5,
     backgroundColor: colors.primaryBright
   },
   statusText: {
-    fontSize: 8,
+    fontSize: 8.5,
     lineHeight: 10,
     fontWeight: typography.weights.extrabold,
     letterSpacing: 0.6
@@ -176,83 +170,66 @@ const styles = StyleSheet.create({
     color: colors.primaryBright
   },
   smartText: {
-    color: colors.primary
+    color: colors.primaryBright
   },
-  aiButton: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 44,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryFaint,
+  aiPill: {
+    height: 38,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: 'rgba(226, 230, 235, 0.35)',
+    backgroundColor: 'rgba(200, 205, 212, 0.10)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 6
+    shadowRadius: 5
   },
-  aiIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
+  aiIconBubble: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: 'rgba(200, 205, 212, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
-  aiDot: {
+  aiPulseDot: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primaryBright
+    top: -1,
+    right: -1,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: colors.primaryBright,
+    borderWidth: 1,
+    borderColor: colors.surface
   },
-  aiTextCol: {
-    flex: 1,
-    minWidth: 0
-  },
-  aiLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4
-  },
-  aiLabel: {
-    fontSize: 7.5,
-    lineHeight: 9,
-    color: colors.primaryBright,
-    fontWeight: typography.weights.extrabold,
-    letterSpacing: 0.7
-  },
-  aiModelTag: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 4,
-    paddingHorizontal: 3,
-    paddingVertical: 0.5
-  },
-  aiModelTagText: {
-    fontSize: 7,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primaryBright
-  },
-  aiValue: {
-    marginTop: 1,
+  aiPillTitle: {
     fontSize: 11.5,
     lineHeight: 14,
     color: colors.text.bright,
-    fontWeight: typography.weights.bold
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.1
+  },
+  modelBadge: {
+    backgroundColor: 'rgba(200, 205, 212, 0.22)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4
+  },
+  modelBadgeText: {
+    fontSize: 8.5,
+    lineHeight: 10,
+    color: colors.primaryBright,
+    fontWeight: typography.weights.extrabold
   },
   alertButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
@@ -266,12 +243,12 @@ const styles = StyleSheet.create({
   },
   alertDot: {
     position: 'absolute',
-    top: 7,
-    right: 7,
+    top: 6,
+    right: 6,
     width: 7,
     height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
+    borderRadius: 3.5,
+    backgroundColor: colors.warningBright,
     borderWidth: 1.5,
     borderColor: colors.card
   }

@@ -287,9 +287,9 @@ const styles = StyleSheet.create({
   container: {
     minHeight: 360,
     flex: 1,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderStrong,
+    backgroundColor: 'rgba(17, 21, 26, 0.98)',
+    borderTopWidth: 1.2,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
     borderTopLeftRadius: spacing.radius.xxl,
     borderTopRightRadius: spacing.radius.xxl,
     paddingHorizontal: spacing.cardPadding,
@@ -309,18 +309,18 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: 'rgba(255, 255, 255, 0.10)'
   },
   scrollContent: {
     paddingBottom: spacing.xxl
   },
   routeHeader: {
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   titleBadgeRow: {
     flexDirection: 'row',
@@ -332,38 +332,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: 'rgba(200, 205, 212, 0.15)',
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
+    borderColor: 'rgba(200, 205, 212, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
     paddingVertical: 2
   },
   bestBadgeText: {
     fontSize: 10,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   fastestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.fastestSoft,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
-    borderColor: colors.fastestBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
     paddingVertical: 2
   },
   fastestBadgeText: {
     fontSize: 10,
     fontWeight: typography.weights.bold,
-    color: colors.fastest
+    color: colors.fastestBright
   },
   altBadge: {
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
     paddingVertical: 2
   },
   altBadgeText: {
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   etaUnit: {
     fontSize: typography.sizes.h3,
     fontWeight: typography.weights.semibold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   distHero: {
     fontSize: typography.sizes.h2,
@@ -402,15 +402,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   metricCell: {
     flex: 1,
     minWidth: '47%',
-    backgroundColor: colors.card,
-    borderRadius: spacing.radius.lg,
+    backgroundColor: 'rgba(22, 27, 34, 0.92)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: spacing.md
   },
   metricHeaderRow: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     marginBottom: 4
   },
   metricLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
     letterSpacing: 0.5
@@ -430,12 +430,12 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold
   },
   whyBox: {
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: 'rgba(200, 205, 212, 0.08)',
     borderWidth: 1,
-    borderColor: colors.primaryBorderSoft,
-    borderRadius: spacing.radius.lg,
+    borderColor: 'rgba(200, 205, 212, 0.22)',
+    borderRadius: 14,
     padding: spacing.md,
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   whyHeader: {
     flexDirection: 'row',
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   whyHeaderText: {
     fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.primary,
+    color: colors.primaryBright,
     letterSpacing: 0.5
   },
   whyText: {
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     color: colors.text.body
   },
   routesSection: {
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   sectionTitle: {
     fontSize: 10,
@@ -468,16 +468,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(22, 27, 34, 0.92)',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.lg,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.sm
   },
   routeCardSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint
+    backgroundColor: 'rgba(200, 205, 212, 0.12)'
   },
   routeCardLeft: {
     flex: 1
@@ -500,12 +500,12 @@ const styles = StyleSheet.create({
   routeCardBestTag: {
     fontSize: 9,
     fontWeight: typography.weights.extrabold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   routeCardFastestTag: {
     fontSize: 9,
     fontWeight: typography.weights.extrabold,
-    color: colors.fastest
+    color: colors.fastestBright
   },
   routeCardAltTag: {
     fontSize: 9,
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   routeCardEtaUnit: {
     fontSize: 11,
-    color: colors.primary
+    color: colors.primaryBright
   },
   selectedTag: {
     flexDirection: 'row',
@@ -544,17 +544,17 @@ const styles = StyleSheet.create({
   selectedTagText: {
     fontSize: 10,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   maneuversSection: {
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   maneuverItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     gap: spacing.md
   },
   maneuverNum: {
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: 'rgba(255, 255, 255, 0.10)'
   },
   maneuverNumText: {
     fontSize: 11,
@@ -604,9 +604,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderRadius: spacing.radius.xl,
+    borderRadius: 16,
     paddingVertical: spacing.md,
-    minHeight: 52,
+    minHeight: 50,
     gap: spacing.sm,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },

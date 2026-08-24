@@ -366,29 +366,29 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
-    borderRadius: spacing.radius.xl,
-    paddingHorizontal: spacing.md,
-    minHeight: 48,
-    gap: spacing.sm,
+    backgroundColor: 'rgba(17, 21, 26, 0.95)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    minHeight: 46,
+    gap: 8,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12
   },
   focusMapToggle: {
-    height: 48,
-    paddingHorizontal: 10,
-    borderRadius: spacing.radius.xl,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
+    height: 46,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(17, 21, 26, 0.95)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -402,9 +402,9 @@ const styles = StyleSheet.create({
   compactFocusBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderColor: colors.primaryBorder,
+    backgroundColor: 'rgba(17, 21, 26, 0.95)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(200, 205, 212, 0.4)',
     borderRadius: spacing.radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
@@ -438,10 +438,10 @@ const styles = StyleSheet.create({
     color: colors.primaryBright
   },
   searchIconRing: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(200, 205, 212, 0.16)',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -449,55 +449,55 @@ const styles = StyleSheet.create({
     flex: 1
   },
   searchLabel: {
-    fontSize: 9,
-    lineHeight: 11,
+    fontSize: 8.5,
+    lineHeight: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
     letterSpacing: 0.5
   },
   searchVal: {
-    fontSize: typography.sizes.body,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: typography.weights.bold,
     color: colors.text.bright
   },
   searchActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: 'rgba(200, 205, 212, 0.14)',
     borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     gap: 2
   },
   searchActionText: {
     fontSize: 10,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.primaryBright
   },
   chipsScroll: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: 6,
     paddingVertical: 2
   },
   shortcutChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(22, 27, 34, 0.92)',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.md,
-    height: 32,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 30,
     justifyContent: 'center'
   },
   shortcutChipSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primaryBorder
+    backgroundColor: 'rgba(200, 205, 212, 0.16)',
+    borderColor: 'rgba(200, 205, 212, 0.4)'
   },
   shortcutText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: typography.weights.semibold,
     color: colors.text.secondary
   },
@@ -507,23 +507,23 @@ const styles = StyleSheet.create({
   },
   poiScroll: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: 6,
     paddingVertical: 2
   },
   poiChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(22, 27, 34, 0.85)',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.md,
-    height: 28,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    height: 26,
     justifyContent: 'center'
   },
   poiText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.medium,
     color: colors.text.muted
   },

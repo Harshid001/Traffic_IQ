@@ -56,20 +56,20 @@ export interface MapLayerConfig {
 
 export const MAP_LAYERS: MapLayerConfig[] = [
   {
+    id: 'cyber_dark',
+    name: 'Dark Cockpit',
+    badge: 'Night',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    subdomains: 'abcd',
+    maxZoom: 20
+  },
+  {
     id: 'nav_streets',
     name: 'Streets',
     badge: 'Standard',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     subdomains: 'abcd',
     maxZoom: 20
-  },
-  {
-    id: 'osm',
-    name: 'OpenStreetMap',
-    badge: 'OSM',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    subdomains: 'abc',
-    maxZoom: 19
   },
   {
     id: 'satellite',
@@ -81,12 +81,12 @@ export const MAP_LAYERS: MapLayerConfig[] = [
     maxZoom: 19
   },
   {
-    id: 'cyber_dark',
-    name: 'Dark Map',
-    badge: 'Night',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    maxZoom: 20
+    id: 'osm',
+    name: 'OpenStreetMap',
+    badge: 'OSM',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: 'abc',
+    maxZoom: 19
   }
 ];
 
@@ -95,29 +95,29 @@ export const MAP_LAYERS: MapLayerConfig[] = [
  */
 const SHARED_MAP_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #map { width: 100%; height: 100%; background: #F1F5F9; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  html, body, #map { width: 100%; height: 100%; background: #080A0D; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
 
-  /* Simple Clean Vehicle Marker */
+  /* Premium Vehicle Navigation Marker */
   .vehicle-marker-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     pointer-events: none;
   }
   .vehicle-core-dot {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: #2563EB;
+    background: #C8CDD4;
     border: 2.5px solid #FFFFFF;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 14px rgba(200, 205, 212, 0.7), 0 2px 8px rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s ease-out;
+    transition: transform 0.25s ease-out;
   }
   .vehicle-arrow-tip {
     width: 0;
@@ -128,59 +128,59 @@ const SHARED_MAP_CSS = `
     transform: translateY(-1px);
   }
 
-  /* Simple Clean Origin & Destination Markers */
+  /* Origin & Destination Markers */
   .clean-pin-marker {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 13px;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
     border: 2px solid #FFFFFF;
     color: #FFFFFF;
     font-size: 11px;
     font-weight: 800;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.6);
     cursor: pointer;
   }
   .origin-pin-bg {
-    background: #0284C7;
+    background: #06B6D4;
   }
   .dest-pin-bg {
-    background: #16A34A;
+    background: #C8CDD4;
   }
 
-  /* Simple Route Time Badges */
+  /* Route Time Badges */
   .simple-route-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 12px;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 14px;
     font-size: 11px;
     font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
     cursor: pointer;
     white-space: nowrap;
     user-select: none;
   }
   .active-route-badge {
-    background: #1E293B;
-    border: 1.5px solid #2563EB;
+    background: rgba(17, 21, 26, 0.95);
+    border: 1.5px solid #C8CDD4;
     color: #FFFFFF;
   }
   .active-route-badge .badge-time {
-    color: #60A5FA;
+    color: #E2E6EB;
     font-weight: 800;
   }
   .alt-route-badge {
-    background: #FFFFFF;
-    border: 1.5px solid #94A3B8;
-    color: #334155;
+    background: rgba(22, 27, 34, 0.90);
+    border: 1px solid #475569;
+    color: #94A3B8;
   }
   .alt-route-badge:hover {
-    border-color: #2563EB;
-    color: #0F172A;
+    border-color: #E2E6EB;
+    color: #FFFFFF;
   }
 `;
 
@@ -855,7 +855,7 @@ export const CockpitMap: React.FC<{
       const destIcon = L.divIcon({
         className: '',
         html: `<div class="clean-pin-marker dest-pin-bg">B</div>`,
-        iconAnchor: [13, 13]
+        iconAnchor: [14, 14]
       });
       L.marker(endPt, { icon: destIcon, zIndexOffset: 600 }).addTo(pinLayerRef.current);
 
@@ -883,8 +883,8 @@ export const CockpitMap: React.FC<{
     const puckIcon = L.divIcon({
       className: '',
       html: puckHtml,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
     });
 
     if (puckMarkerRef.current) {
@@ -920,7 +920,7 @@ export const CockpitMap: React.FC<{
       {Platform.OS === 'web' ? (
         <div
           ref={mapContainerRef}
-          style={{ width: '100%', height: '100%', backgroundColor: '#E2E8F0' }}
+          style={{ width: '100%', height: '100%', backgroundColor: '#080A0D' }}
         />
       ) : WebViewComponent && !useFallbackSvg ? (
         <WebViewComponent
@@ -949,7 +949,7 @@ export const CockpitMap: React.FC<{
         />
       )}
 
-      {/* Cockpit Floating Controls Island (Right Side) */}
+      {/* Cockpit Floating Controls Island (Ergonomic Right Dock) */}
       <View style={styles.floatingControlsIsland}>
         {/* Recenter User Location */}
         <TouchableOpacity
@@ -960,7 +960,7 @@ export const CockpitMap: React.FC<{
           accessibilityRole="button"
           accessibilityLabel="Recenter map on current location"
         >
-          <LocateFixed size={18} color="#2563EB" strokeWidth={2.4} />
+          <LocateFixed size={18} color={colors.primaryBright} strokeWidth={2.4} />
         </TouchableOpacity>
 
         {/* Fit Entire Route Bounds */}
@@ -984,32 +984,35 @@ export const CockpitMap: React.FC<{
           accessibilityRole="button"
           accessibilityLabel="Toggle map layer selector"
         >
-          <Layers size={17} color={showLayerMenu ? '#2563EB' : colors.text.bright} strokeWidth={2.2} />
+          <Layers size={17} color={showLayerMenu ? colors.primaryBright : colors.text.bright} strokeWidth={2.2} />
         </TouchableOpacity>
 
-        {/* Zoom In (+) */}
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => handleZoom(1)}
-          style={styles.zoomButtonTop}
-          hitSlop={spacing.hitSlop}
-          accessibilityRole="button"
-          accessibilityLabel="Zoom in"
-        >
-          <Plus size={16} color={colors.text.bright} strokeWidth={2.5} />
-        </TouchableOpacity>
+        {/* Zoom Controls Pill */}
+        <View style={styles.zoomPill}>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => handleZoom(1)}
+            style={styles.zoomButtonTop}
+            hitSlop={spacing.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Zoom in"
+          >
+            <Plus size={16} color={colors.text.bright} strokeWidth={2.5} />
+          </TouchableOpacity>
 
-        {/* Zoom Out (-) */}
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => handleZoom(-1)}
-          style={styles.zoomButtonBottom}
-          hitSlop={spacing.hitSlop}
-          accessibilityRole="button"
-          accessibilityLabel="Zoom out"
-        >
-          <Minus size={16} color={colors.text.bright} strokeWidth={2.5} />
-        </TouchableOpacity>
+          <View style={styles.zoomDivider} />
+
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => handleZoom(-1)}
+            style={styles.zoomButtonBottom}
+            hitSlop={spacing.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Zoom out"
+          >
+            <Minus size={16} color={colors.text.bright} strokeWidth={2.5} />
+          </TouchableOpacity>
+        </View>
 
         {/* Compass Widget */}
         <View style={styles.compassCard} accessibilityLabel={`Heading ${Math.round(headingDeg)} degrees`}>
@@ -1046,7 +1049,7 @@ export const CockpitMap: React.FC<{
                     <Text style={[styles.layerTileName, isSelected && styles.layerTileNameSelected]}>
                       {layer.name}
                     </Text>
-                    {isSelected && <Check size={14} color="#2563EB" strokeWidth={3} />}
+                    {isSelected && <Check size={14} color={colors.primaryBright} strokeWidth={3} />}
                   </View>
                   <Text style={styles.layerTileBadge}>{layer.badge}</Text>
                 </TouchableOpacity>
@@ -1062,12 +1065,12 @@ export const CockpitMap: React.FC<{
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#080A0D',
     position: 'relative'
   },
   webView: {
     flex: 1,
-    backgroundColor: '#E2E8F0'
+    backgroundColor: '#080A0D'
   },
   illustrationContainer: {
     flex: 1,
@@ -1079,70 +1082,76 @@ const styles = StyleSheet.create({
   },
   floatingControlsIsland: {
     position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
+    top: 135,
+    right: 12,
     zIndex: 35,
-    gap: 6
+    gap: 7,
+    alignItems: 'center'
   },
   controlButton: {
     width: 40,
     height: 40,
-    borderRadius: spacing.radius.lg,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
+    borderRadius: 14,
+    backgroundColor: 'rgba(17, 21, 26, 0.92)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 8
   },
   controlButtonActive: {
-    borderColor: '#2563EB',
-    backgroundColor: colors.surface
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(200, 205, 212, 0.16)'
+  },
+  zoomPill: {
+    width: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(17, 21, 26, 0.92)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8
   },
   zoomButtonTop: {
     width: 40,
     height: 32,
-    borderTopLeftRadius: spacing.radius.lg,
-    borderTopRightRadius: spacing.radius.lg,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderBottomWidth: 0.5,
-    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  zoomDivider: {
+    width: 28,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    alignSelf: 'center'
   },
   zoomButtonBottom: {
     width: 40,
     height: 32,
-    borderBottomLeftRadius: spacing.radius.lg,
-    borderBottomRightRadius: spacing.radius.lg,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderTopWidth: 0.5,
-    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center'
   },
   compassCard: {
     width: 40,
     height: 36,
-    borderRadius: spacing.radius.md,
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1.5,
-    borderColor: colors.borderStrong,
+    borderRadius: 13,
+    backgroundColor: 'rgba(17, 21, 26, 0.92)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2
+    justifyContent: 'center'
   },
   layerSelectorModal: {
     position: 'absolute',
-    top: spacing.md,
-    right: 56,
+    top: 135,
+    right: 58,
     width: 200,
-    backgroundColor: colors.overlayCard,
+    backgroundColor: 'rgba(22, 27, 34, 0.96)',
     borderRadius: spacing.radius.xl,
     borderWidth: 1.5,
     borderColor: colors.borderStrong,
@@ -1185,7 +1194,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border
   },
   layerTileOptionSelected: {
-    borderColor: '#2563EB',
+    borderColor: colors.primary,
     backgroundColor: colors.primaryFaint
   },
   layerTileHeader: {
@@ -1199,7 +1208,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary
   },
   layerTileNameSelected: {
-    color: '#60A5FA'
+    color: colors.primaryBright
   },
   layerTileBadge: {
     fontSize: 9,

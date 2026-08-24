@@ -2,6 +2,7 @@
  * Single source of truth for color. Components must import from here rather than
  * inlining hex/rgba literals so contrast fixes only have to happen once.
  *
+ * Accent: Soft cool off-white (#C8CDD4) — premium, muted aesthetic.
  * Contrast ratios below are computed against the four app surfaces
  * (background #080A0D, surface #11151A, card #161B22, cardHover #1C222B).
  */
@@ -15,17 +16,17 @@ export const colors = {
   borderLight: 'rgba(255, 255, 255, 0.08)',
   neutral: '#1E293B',
 
-  // Navigation Semantic Colors
-  primary: '#10B981', // Emerald - Best Route / Success (>= 6.30:1 on all surfaces)
-  primaryBright: '#34D399',
-  primaryGlow: 'rgba(16, 185, 129, 0.25)',
-  primarySoft: 'rgba(16, 185, 129, 0.15)',
-  primaryFaint: 'rgba(16, 185, 129, 0.08)',
-  primaryBorder: 'rgba(16, 185, 129, 0.3)',
-  primaryBorderSoft: 'rgba(16, 185, 129, 0.15)',
-  primaryDark: '#059669',
-  primaryDeep: '#047857',
-  primaryTint: '#11191F',
+  // Navigation Semantic Colors — Soft Off-White Accent
+  primary: '#C8CDD4',       // Soft off-white accent
+  primaryBright: '#E2E6EB',  // Brighter variant
+  primaryGlow: 'rgba(200, 205, 212, 0.25)',
+  primarySoft: 'rgba(200, 205, 212, 0.15)',
+  primaryFaint: 'rgba(200, 205, 212, 0.08)',
+  primaryBorder: 'rgba(200, 205, 212, 0.3)',
+  primaryBorderSoft: 'rgba(200, 205, 212, 0.15)',
+  primaryDark: '#A0A7B0',
+  primaryDeep: '#8B929B',
+  primaryTint: '#14171B',
 
   fastest: '#F59E0B', // Amber - Fastest Route (>= 7.45:1 on all surfaces)
   fastestBright: '#FBBF24',
@@ -106,7 +107,7 @@ export const colors = {
 
   // Driver Shortcut Category Tags
   poi: {
-    ev: '#10B981',
+    ev: '#C8CDD4',
     fuel: '#F59E0B',
     coffee: '#8B5CF6',
     parking: '#06B6D4',
@@ -115,10 +116,10 @@ export const colors = {
 
   // Traffic Congestion Spectrum
   congestion: {
-    freeflow: '#10B981', // 0-30%
-    moderate: '#F59E0B', // 31-60%
-    heavy: '#F97316',    // 61-80%
-    severe: '#EF4444'    // 81-100%
+    freeflow: '#C8CDD4', // 0-30%
+    moderate: '#F59E0B',  // 31-60%
+    heavy: '#F97316',     // 61-80%
+    severe: '#EF4444'     // 81-100%
   },
 
   /** Map polyline colors and multi-layer rendering tokens. */
@@ -128,13 +129,11 @@ export const colors = {
     casing: '#040814',
     casingLight: '#FFFFFF',
     laserCore: 'rgba(255, 255, 255, 0.95)',
-    activeGlow: 'rgba(16, 185, 129, 0.45)',
+    activeGlow: 'rgba(200, 205, 212, 0.45)',
     altFastestGlow: 'rgba(139, 92, 246, 0.35)',
     altStandardGlow: 'rgba(100, 116, 139, 0.25)',
     originPin: '#06B6D4',
-    destPin: '#10B981',
+    destPin: '#C8CDD4',
     hazardPin: '#EF4444'
   }
 };
-
-
