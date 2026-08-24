@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Navigation, GitFork, TrendingUp, Sparkles, SlidersHorizontal } from 'lucide-react-native';
 import { useNavigationStore, ActiveTab } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 
 const TABS: { id: ActiveTab; label: string; icon: any }[] = [
   { id: 'navigate', label: 'Navigate', icon: Navigation },
@@ -20,37 +19,39 @@ const TabBarBase: React.FC = () => {
   const isNavigating = useNavigationStore(s => s.isNavigating);
 
   return (
-    <View style={styles.tabBar} accessibilityRole="tablist">
-      {TABS.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-        const isLiveNav = tab.id === 'navigate' && isNavigating;
+    <View style={styles.shell} pointerEvents="box-none">
+      <View style={styles.tabBar} accessibilityRole="tablist">
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          const isLiveNav = tab.id === 'navigate' && isNavigating;
 
-        return (
-          <TouchableOpacity
-            key={tab.id}
-            activeOpacity={0.75}
-            onPress={() => setActiveTab(tab.id)}
-            style={styles.tabButton}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={isLiveNav ? `${tab.label}, navigation in progress` : tab.label}
-          >
-            {/* Active Pill Container */}
-            <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
-              <View style={styles.iconContainer}>
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              activeOpacity={0.82}
+              onPress={() => setActiveTab(tab.id)}
+              style={[styles.tabButton, isActive && styles.tabButtonActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={isLiveNav ? `${tab.label}, navigation in progress` : tab.label}
+              hitSlop={6}
+            >
+              <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
                 <Icon
-                  size={20}
+                  size={19}
                   color={isActive ? colors.primaryBright : colors.text.muted}
-                  strokeWidth={isActive ? 2.4 : 1.8}
+                  strokeWidth={isActive ? 2.5 : 1.8}
                 />
-                {isLiveNav && <View style={styles.activeNavDot} />}
+                {isLiveNav && <View style={styles.liveDot} />}
               </View>
-            </View>
-            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
+              <Text numberOfLines={1} style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -58,66 +59,76 @@ const TabBarBase: React.FC = () => {
 export const TabBar = React.memo(TabBarBase);
 
 const styles = StyleSheet.create({
+  shell: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 10,
+    zIndex: 60,
+    pointerEvents: 'box-none'
+  },
   tabBar: {
-    minHeight: 66,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.sm,
-    paddingTop: 4,
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    backgroundColor: colors.overlaySurface,
+    borderWidth: 1,
+    borderColor: colors.glass.strokeStrong,
+    borderRadius: 24,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    zIndex: 40
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 22
   },
   tabButton: {
     flex: 1,
+    minHeight: 50,
+    marginHorizontal: 2,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 2,
-    minHeight: spacing.touchTargetMin
+    gap: 2
   },
-  iconPill: {
-    width: 44,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: spacing.radius.pill,
-    marginBottom: 2
-  },
-  iconPillActive: {
-    backgroundColor: colors.primarySoft,
+  tabButtonActive: {
+    backgroundColor: colors.primaryFaint,
     borderWidth: 1,
-    borderColor: colors.primaryBorder
+    borderColor: colors.primaryBorderSoft
   },
-  iconContainer: {
+  iconWrap: {
+    width: 34,
+    height: 27,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative'
   },
-  activeNavDot: {
+  iconWrapActive: {
+    backgroundColor: colors.primarySoft
+  },
+  liveDot: {
     position: 'absolute',
-    top: -2,
-    right: -4,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.primary,
+    top: 2,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primaryBright,
     borderWidth: 1.5,
     borderColor: colors.surface
   },
   tabLabel: {
-    fontSize: 10,
+    maxWidth: 68,
+    fontSize: 9.5,
     lineHeight: 12,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     color: colors.text.muted,
-    marginTop: 1
+    textAlign: 'center'
   },
   tabLabelActive: {
-    color: colors.primaryBright,
-    fontWeight: typography.weights.bold
+    color: colors.text.bright,
+    fontWeight: typography.weights.extrabold
   }
 });
