@@ -110,7 +110,7 @@ const HeaderBase: React.FC = () => {
           accessibilityRole="button"
           accessibilityLabel="Close corridor picker"
         >
-          <Pressable style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
+          <Pressable accessible={false} style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
             <Text style={styles.modalHeader}>SELECT NAVIGATION CORRIDOR</Text>
             {CORRIDORS.map((corridor) => {
               const isSelected = corridor.id === selectedCorridor;

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { X, BarChart3, TrendingDown, Cpu, CheckCircle, Award, RefreshCw } from 'lucide-react';
+import { X, BarChart3, Cpu, CheckCircle, Award, RefreshCw, AlertCircle } from 'lucide-react';
 import { getEvaluationBenchmark } from '../services/api';
 
 export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
   const [benchData, setBenchData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -12,13 +13,25 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   async function fetchBenchmark() {
     setLoading(true);
+    setError(null);
     try {
       const res = await getEvaluationBenchmark();
       setBenchData(res);
     } catch (e) {
       console.error('Failed to fetch benchmark:', e);
+      setError(e?.message || 'Failed to load empirical benchmark statistics from backend.');
     } finally {
       setLoading(false);
     }
@@ -27,7 +40,12 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="benchmark-modal-title"
+    >
       <div className="bg-[#0e1526] border border-slate-700/80 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-800">
@@ -36,7 +54,7 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
               <Award className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 id="benchmark-modal-title" className="text-base font-bold text-white flex items-center gap-2">
                 EVALUATION & BENCHMARK STUDIO
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
                   EMPIRICAL BACKTEST
@@ -50,16 +68,37 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            aria-label="Close dialog"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {loading || !benchData ? (
+        {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
             <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
             <span className="text-xs">Computing empirical benchmark statistics...</span>
+          </div>
+        ) : error ? (
+          <div className="py-8 flex flex-col items-center justify-center gap-3 text-center">
+            <AlertCircle className="w-8 h-8 text-red-400" />
+            <p className="text-xs text-slate-300 max-w-md">{error}</p>
+            <button
+              onClick={fetchBenchmark}
+              className="mt-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Retry Calculation
+            </button>
+          </div>
+        ) : benchData?.total_samples === 0 ? (
+          <div className="py-8 text-center space-y-3">
+            <p className="text-xs text-slate-300">
+              {benchData.message || 'No evaluation logs recorded yet.'}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Run navigation trips or simulate routes to log empirical predictions and evaluate error metrics.
+            </p>
           </div>
         ) : (
           <div className="space-y-5">
@@ -118,7 +157,7 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
                     <tr className="text-emerald-300 bg-emerald-950/20 font-semibold">
                       <td className="py-2.5 font-sans flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        Chronos-2 (amazon/chronos-2)
+                        Chronos-2 / Quantile Inference
                       </td>
                       <td className="py-2.5 text-emerald-400">{benchData.metrics?.chronos2?.mae}%</td>
                       <td className="py-2.5 text-emerald-400">{benchData.metrics?.chronos2?.rmse}%</td>
@@ -174,7 +213,7 @@ export default function EvaluationBenchmarkModal({ isOpen, onClose }) {
               <span>All metrics computed directly from empirical dataset stored in SQLite database.</span>
               <button
                 onClick={fetchBenchmark}
-                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-mono"
+                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-mono cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3" /> Refresh
               </button>

@@ -69,7 +69,7 @@ const LockScreenAlertModalBase: React.FC = () => {
 
         {/* Center Clock & Push Notification. `onPress={() => {}}` keeps taps
             inside the card from dismissing the modal. */}
-        <Pressable style={[styles.centerContainer, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
+        <Pressable accessible={false} style={[styles.centerContainer, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
           <Text style={styles.clockTime}>{formatClock(now)}</Text>
           <Text style={styles.clockDate}>{formatLongDate(now)}</Text>
 

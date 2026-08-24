@@ -29,7 +29,7 @@ const BottomSheetContainerBase: React.FC = () => {
             accessibilityLabel="Collapse route details"
           >
             {/* Swallow taps inside the sheet so they do not dismiss it. */}
-            <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <Pressable accessible={false} style={styles.modalSheet} onPress={() => {}}>
               <ExpandedRouteSheet />
             </Pressable>
           </Pressable>

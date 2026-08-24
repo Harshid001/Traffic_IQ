@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { fetchHealth } from '../services/routingService';
 import { toUserMessage } from '../services/api';
+import { universalStorage } from './storage';
 
 export type PreferenceProfile =
   | 'BALANCED'
@@ -34,33 +36,49 @@ interface SettingsState {
   refreshHealth: () => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
-  preferenceProfile: 'BALANCED',
-  trafficMode: 'DEMO',
-  alertCooldownSeconds: 300,
-  worseningThresholdPct: 10,
-  backgroundAlertsEnabled: true,
-  soundEnabled: true,
-  systemHealth: null,
-  isLoadingHealth: false,
-  healthError: null,
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      preferenceProfile: 'BALANCED',
+      trafficMode: 'DEMO',
+      alertCooldownSeconds: 300,
+      worseningThresholdPct: 10,
+      backgroundAlertsEnabled: true,
+      soundEnabled: true,
+      systemHealth: null,
+      isLoadingHealth: false,
+      healthError: null,
 
-  setPreferenceProfile: (preferenceProfile) => set({ preferenceProfile }),
-  setTrafficMode: (trafficMode) => set({ trafficMode }),
-  setAlertCooldownSeconds: (alertCooldownSeconds) => set({ alertCooldownSeconds }),
-  setWorseningThresholdPct: (worseningThresholdPct) => set({ worseningThresholdPct }),
-  toggleBackgroundAlerts: () =>
-    set((state) => ({ backgroundAlertsEnabled: !state.backgroundAlertsEnabled })),
-  toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
+      setPreferenceProfile: (preferenceProfile) => set({ preferenceProfile }),
+      setTrafficMode: (trafficMode) => set({ trafficMode }),
+      setAlertCooldownSeconds: (alertCooldownSeconds) => set({ alertCooldownSeconds }),
+      setWorseningThresholdPct: (worseningThresholdPct) => set({ worseningThresholdPct }),
+      toggleBackgroundAlerts: () =>
+        set((state) => ({ backgroundAlertsEnabled: !state.backgroundAlertsEnabled })),
+      toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
 
-  refreshHealth: async () => {
-    set({ isLoadingHealth: true, healthError: null });
-    try {
-      const health = await fetchHealth();
-      set({ systemHealth: health, isLoadingHealth: false, healthError: null });
-    } catch (err) {
-      // Clear stale health so the UI cannot claim services are online.
-      set({ isLoadingHealth: false, healthError: toUserMessage(err), systemHealth: null });
+      refreshHealth: async () => {
+        set({ isLoadingHealth: true, healthError: null });
+        try {
+          const health = await fetchHealth();
+          set({ systemHealth: health, isLoadingHealth: false, healthError: null });
+        } catch (err) {
+          // Clear stale health so the UI cannot claim services are online.
+          set({ isLoadingHealth: false, healthError: toUserMessage(err), systemHealth: null });
+        }
+      }
+    }),
+    {
+      name: 'trafficiq-settings',
+      storage: createJSONStorage(() => universalStorage),
+      partialize: (state) => ({
+        preferenceProfile: state.preferenceProfile,
+        trafficMode: state.trafficMode,
+        alertCooldownSeconds: state.alertCooldownSeconds,
+        worseningThresholdPct: state.worseningThresholdPct,
+        backgroundAlertsEnabled: state.backgroundAlertsEnabled,
+        soundEnabled: state.soundEnabled,
+      }),
     }
-  }
-}));
+  )
+);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Star, TrendingUp, TrendingDown, Minus, Clock, ShieldCheck, AlertTriangle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Zap, Star, TrendingUp, TrendingDown, Minus, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function RouteComparison({
   routes = [],
@@ -13,9 +13,9 @@ export default function RouteComparison({
   const bestRoute = routes.find((r) => r.id === bestRouteId) || routes[0];
 
   const getTrendIcon = (trend) => {
-    if (trend === 'WORSENING') return <TrendingUp className="w-3.5 h-3.5 text-red-400" />;
-    if (trend === 'CLEARING') return <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />;
-    return <Minus className="w-3.5 h-3.5 text-slate-400" />;
+    if (trend === 'WORSENING') return <TrendingUp className="w-3.5 h-3.5 text-red-400" aria-label="Worsening trend" />;
+    if (trend === 'CLEARING') return <TrendingDown className="w-3.5 h-3.5 text-emerald-400" aria-label="Clearing trend" />;
+    return <Minus className="w-3.5 h-3.5 text-slate-400" aria-label="Stable trend" />;
   };
 
   const getReliabilityBadge = (rel) => {
@@ -41,10 +41,23 @@ export default function RouteComparison({
     );
   };
 
-  if (!fastestRoute || !bestRoute) return null;
+  const handleKeyDown = (e, routeId) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelectRoute(routeId);
+    }
+  };
+
+  if (!fastestRoute || !bestRoute) {
+    return (
+      <div className="glass-panel rounded-2xl p-4 border border-slate-800 text-center text-xs text-slate-400">
+        No routes available to compare.
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" role="region" aria-label="Route Comparison Panel">
       {/* Route Decision Summary Banner */}
       <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
         <div className="flex items-center gap-2">
@@ -66,8 +79,13 @@ export default function RouteComparison({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* FASTEST ROUTE CARD */}
         <div
+          role="button"
+          tabIndex={0}
+          aria-pressed={selectedRouteId === fastestRoute.id}
+          aria-label={`Select Fastest Route: ${fastestRoute.name}, ETA ${fastestRoute.predicted_eta_p50} minutes`}
           onClick={() => onSelectRoute(fastestRoute.id)}
-          className={`cursor-pointer rounded-2xl p-5 border transition-all duration-200 relative overflow-hidden ${
+          onKeyDown={(e) => handleKeyDown(e, fastestRoute.id)}
+          className={`cursor-pointer rounded-2xl p-5 border transition-all duration-200 relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-400 ${
             selectedRouteId === fastestRoute.id
               ? 'bg-amber-950/20 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/30'
               : 'glass-panel hover:border-slate-700'
@@ -148,10 +166,15 @@ export default function RouteComparison({
 
         {/* BEST ROUTE CARD */}
         <div
+          role="button"
+          tabIndex={0}
+          aria-pressed={selectedRouteId === bestRoute.id}
+          aria-label={`Select Best Route: ${bestRoute.name}, ETA ${bestRoute.predicted_eta_p50} minutes, score ${bestRoute.score} of 100`}
           onClick={() => onSelectRoute(bestRoute.id)}
-          className={`cursor-pointer rounded-2xl p-5 border transition-all duration-200 relative overflow-hidden ${
+          onKeyDown={(e) => handleKeyDown(e, bestRoute.id)}
+          className={`cursor-pointer rounded-2xl p-5 border transition-all duration-200 relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
             selectedRouteId === bestRoute.id
-              ? 'bg-emerald-950/25 border-emerald-500/70 shadow-lg shadow-emerald-500/15 ring-1 ring-emerald-500/40 animate-glow'
+              ? 'bg-emerald-950/25 border-emerald-500/70 shadow-lg shadow-emerald-500/15 ring-1 ring-emerald-500/40'
               : 'glass-panel hover:border-slate-700'
           }`}
         >

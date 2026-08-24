@@ -6,9 +6,14 @@ from backend.config import settings
 def get_db_connection():
     db_path = Path(settings.DATABASE_PATH)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=10.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # Enable Write-Ahead Logging (WAL) and synchronous normal for concurrent reader/writer safety
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA busy_timeout=5000;")
     return conn
+
 
 def init_db():
     conn = get_db_connection()
@@ -35,6 +40,10 @@ def init_db():
     """)
     
     cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_segment_timestamp ON segment_history (timestamp)
+    """)
+    
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS forecast_eval_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         segment_id TEXT NOT NULL,
@@ -45,6 +54,17 @@ def init_db():
         chronos_p50 REAL NOT NULL,
         chronos_p90 REAL NOT NULL,
         baseline_pred REAL NOT NULL
+    )
+    """)
+    
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_eval_timestamp ON forecast_eval_logs (timestamp)
+    """)
+    
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS alert_cooldowns (
+        alert_key TEXT PRIMARY KEY,
+        last_sent_at DATETIME NOT NULL
     )
     """)
     

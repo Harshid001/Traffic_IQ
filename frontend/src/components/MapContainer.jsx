@@ -58,8 +58,13 @@ export default function MapContainerComponent({
   vehiclePosition,
   isSimulatingDrive,
 }) {
-  const originPos = origin ? [origin.lat, origin.lon] : [12.9756, 77.6066];
-  const destPos = destination ? [destination.lat, destination.lon] : [12.9863, 77.7340];
+  const originLat = origin?.lat ?? 12.9756;
+  const originLon = origin?.lon ?? 77.6066;
+  const destLat = destination?.lat ?? 12.9863;
+  const destLon = destination?.lon ?? 77.7340;
+
+  const originPos = useMemo(() => [originLat, originLon], [originLat, originLon]);
+  const destPos = useMemo(() => [destLat, destLon], [destLat, destLon]);
 
   // Collect all coordinates to compute bounds
   const allCoords = useMemo(() => {
@@ -71,16 +76,18 @@ export default function MapContainerComponent({
   }, [routes, originPos, destPos]);
 
   return (
-    <div className="relative w-full h-[460px] lg:h-[520px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
+    <div className="relative w-full h-[460px] lg:h-[520px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950" role="region" aria-label="Interactive Route Map">
       <LeafletMap
         center={originPos}
         zoom={12}
         scrollWheelZoom={true}
-        className="w-full h-full dark-tiles"
+        className="w-full h-full"
       >
+        {/* CartoDB Dark Matter Tiles (High performance, native dark theme) */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          maxZoom={19}
         />
 
         <MapAutoBounds coordinates={allCoords} />
@@ -189,7 +196,7 @@ export default function MapContainerComponent({
       <div className="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-800 text-[11px] flex flex-col gap-1.5 shadow-xl">
         <div className="font-semibold text-slate-200 uppercase tracking-wider text-[10px] flex items-center justify-between gap-4">
           <span>Map Intelligence</span>
-          <span className="text-emerald-400 font-mono">LIVE FEED</span>
+          <span className="text-emerald-400 font-mono">CARTO DARK</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>

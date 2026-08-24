@@ -5,23 +5,37 @@
     "version": "2.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "scheme": "trafficiq",
     "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#080A0D"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.trafficiq.cockpit"
+      "bundleIdentifier": "com.trafficiq.cockpit",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "TrafficIQ requires location access to provide real-time cockpit driving navigation and predictive congestion warnings.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "TrafficIQ requires continuous location to monitor road conditions and push proactive traffic alerts."
+      }
     },
     "android": {
       "package": "com.trafficiq.cockpit",
+      "versionCode": 1,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "VIBRATE"
       ]
     },
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "trafficiq-mobile"
+      },
+      "apiBaseUrl": "http://localhost:8005"
     },
     "plugins": []
   }

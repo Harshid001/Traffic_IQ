@@ -1,13 +1,33 @@
 import os
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
+
     APP_NAME: str = "Predictive Explainable Traffic Intelligence"
     APP_VERSION: str = "2.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    
+    # Security & CORS
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:8000",
+        "http://localhost:8005",
+        "http://127.0.0.1:8005",
+    ]
+    API_KEY: str = os.getenv("TRAFFICIQ_API_KEY", "trafficiq-dev-key")
+    REQUIRE_API_KEY: bool = os.getenv("REQUIRE_API_KEY", "false").lower() in ("true", "1", "yes")
+    
+    # Rate Limiting
+    RATE_LIMIT_DEFAULT: str = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
+    RATE_LIMIT_EXPLAIN: str = os.getenv("RATE_LIMIT_EXPLAIN", "10/minute")
     
     # Routing Tier Configuration
     LOCAL_OSRM_URL: str = os.getenv("LOCAL_OSRM_URL", "http://localhost:5000")
@@ -29,9 +49,5 @@ class Settings(BaseSettings):
     # Chronos-2 Forecasting Model
     CHRONOS_MODEL_NAME: str = os.getenv("CHRONOS_MODEL_NAME", "amazon/chronos-2")
     CHRONOS_DEVICE: str = os.getenv("CHRONOS_DEVICE", "cpu") # "cpu" or "cuda"
-    
-    class Config:
-        env_file = ".env"
-        extra = "allow"
 
 settings = Settings()

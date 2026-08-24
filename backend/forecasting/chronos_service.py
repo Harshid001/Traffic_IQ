@@ -34,7 +34,7 @@ class ChronosForecastingService:
             )
             logger.info("Background: Chronos-2 pipeline loaded successfully.")
         except Exception as e:
-            logger.info(f"Chronos-2 background load notice: {e}. Active mode: High-precision Chronos-2 probabilistic quantile engine.")
+            logger.info(f"Chronos-2 background load notice: {e}. Active mode: Heuristic Momentum Fallback engine.")
             self.pipeline = None
         finally:
             self.loading = False
@@ -52,18 +52,46 @@ class ChronosForecastingService:
             
         if self.pipeline:
             try:
-                context_tensor = torch.tensor(context_values, dtype=torch.float32).unsqueeze(0)
-                forecast = self.pipeline.predict(context_tensor, prediction_length=3, num_samples=50)
-                p10_vals = np.percentile(forecast[0].numpy(), 10, axis=0)
-                p50_vals = np.percentile(forecast[0].numpy(), 50, axis=0)
-                p90_vals = np.percentile(forecast[0].numpy(), 90, axis=0)
-                return self._format_forecast_output(segment_id, current_congestion, freeflow_speed, p10_vals, p50_vals, p90_vals)
+                # Chronos-2 expects 3D tensor: (batch_size, n_variates, history_length)
+                context_tensor = torch.tensor(context_values, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+                if hasattr(self.pipeline, "predict_quantiles"):
+                    quantiles, _ = self.pipeline.predict_quantiles(
+                        context_tensor, 
+                        prediction_length=3, 
+                        quantile_levels=[0.1, 0.5, 0.9]
+                    )
+                    q_arr = quantiles.detach().cpu().numpy() if torch.is_tensor(quantiles) else np.array(quantiles)
+                    # Handle (batch, variates, quantiles, horizon) or (batch, quantiles, horizon)
+                    if q_arr.ndim == 4:
+                        p10_vals = q_arr[0, 0, 0, :]
+                        p50_vals = q_arr[0, 0, 1, :]
+                        p90_vals = q_arr[0, 0, 2, :]
+                    else:
+                        p10_vals = q_arr[0, 0, :]
+                        p50_vals = q_arr[0, 1, :]
+                        p90_vals = q_arr[0, 2, :]
+                else:
+                    forecast = self.pipeline.predict(context_tensor, prediction_length=3)
+                    f_arr = forecast.detach().cpu().numpy() if torch.is_tensor(forecast) else np.array(forecast)
+                    p10_vals = np.percentile(f_arr[0], 10, axis=-1)
+                    p50_vals = np.percentile(f_arr[0], 50, axis=-1)
+                    p90_vals = np.percentile(f_arr[0], 90, axis=-1)
+
+                return self._format_forecast_output(
+                    segment_id, current_congestion, freeflow_speed, 
+                    p10_vals, p50_vals, p90_vals,
+                    model_provenance=f"Chronos-2 ({self.model_name})"
+                )
             except Exception as e:
                 logger.warning(f"Chronos pipeline runtime error: {e}")
 
-        # High-precision Chronos-2 Transformer Quantile Inference
+        # High-precision Chronos-2 Momentum/Quantile Fallback
         p10_vals, p50_vals, p90_vals = self._probabilistic_chronos_inference(context_values, current_congestion)
-        return self._format_forecast_output(segment_id, current_congestion, freeflow_speed, p10_vals, p50_vals, p90_vals)
+        return self._format_forecast_output(
+            segment_id, current_congestion, freeflow_speed, 
+            p10_vals, p50_vals, p90_vals,
+            model_provenance="Heuristic Momentum Fallback"
+        )
 
     def _probabilistic_chronos_inference(self, context: List[float], current_val: float):
         diffs = np.diff(context)
@@ -90,7 +118,8 @@ class ChronosForecastingService:
 
     def _format_forecast_output(self, segment_id: str, current_cong: float, 
                                 freeflow_spd: float, p10: List[float], 
-                                p50: List[float], p90: List[float]) -> Dict[str, Any]:
+                                p50: List[float], p90: List[float],
+                                model_provenance: str = "Heuristic Momentum Fallback") -> Dict[str, Any]:
         horizons = [10, 20, 30]
         forecast_points = []
         
@@ -116,7 +145,7 @@ class ChronosForecastingService:
             })
             
         return {
-            "model": "Chronos-2 (amazon/chronos-2)",
+            "model": model_provenance,
             "segment_id": segment_id,
             "current_congestion": round(current_cong, 1),
             "forecast_points": forecast_points,

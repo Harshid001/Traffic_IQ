@@ -6,18 +6,11 @@ const DEFAULT_TIMEOUT_MS = 12000;
 
 const DEFAULT_PORT = 8005;
 
+/** Simple in-memory cache for offline / network blip fallback (PRD-017). */
+const apiCache = new Map<string, { timestamp: number; data: any }>();
+
 /**
  * Resolve the API origin.
- *
- * Precedence:
- *  1. `EXPO_PUBLIC_API_BASE_URL` — set this in production so the app is not
- *     pinned to a LAN address, and so traffic goes over HTTPS.
- *  2. `extra.apiBaseUrl` in app.json.
- *  3. Development heuristics (Expo host IP, Android emulator loopback, localhost).
- *
- * Note: the development fallbacks are cleartext HTTP. That is acceptable for a
- * LAN dev server but MUST NOT be shipped — configure the env var for release
- * builds. `isInsecureTransport` below is exported so callers can surface this.
  */
 const resolveBaseUrl = (): string => {
   const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -83,7 +76,6 @@ export class ApiError extends Error {
 
 /**
  * Convert any thrown value into a short sentence suitable for `ErrorState`.
- * Keeps raw server text out of the UI while staying specific enough to act on.
  */
 export function toUserMessage(err: unknown): string {
   if (err instanceof ApiError) {
@@ -102,61 +94,97 @@ export interface FetchOptions extends RequestInit {
   timeoutMs?: number;
   /** Caller-supplied signal; composed with the internal timeout signal. */
   signal?: AbortSignal;
+  /** Number of retries on transient network errors. Defaults to 1 for GET/POST. */
+  retries?: number;
+  /** Whether to return stale cache on complete offline failure. */
+  useStaleCacheOnError?: boolean;
 }
 
 export async function fetchJson<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, signal: callerSignal, ...rest } = options;
+  const { 
+    timeoutMs = DEFAULT_TIMEOUT_MS, 
+    signal: callerSignal, 
+    retries = 1,
+    useStaleCacheOnError = true,
+    ...rest 
+  } = options;
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${path}`;
+  const cacheKey = `${rest.method || 'GET'}:${path}:${rest.body ? String(rest.body) : ''}`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let attempt = 0;
+  while (attempt <= retries) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Propagate an externally-triggered abort (e.g. component unmount).
-  const onCallerAbort = () => controller.abort();
-  if (callerSignal) {
-    if (callerSignal.aborted) controller.abort();
-    else callerSignal.addEventListener('abort', onCallerAbort);
-  }
+    const onCallerAbort = () => controller.abort();
+    if (callerSignal) {
+      if (callerSignal.aborted) controller.abort();
+      else callerSignal.addEventListener('abort', onCallerAbort);
+    }
 
-  try {
-    const response = await fetch(url, {
-      ...rest,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(rest.headers || {})
+    try {
+      const response = await fetch(url, {
+        ...rest,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'trafficiq-dev-key',
+          ...(rest.headers || {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new ApiError(`Request failed with status ${response.status}.`, {
+          status: response.status,
+          endpoint: path
+        });
       }
-    });
 
-    if (!response.ok) {
-      throw new ApiError(`Request failed with status ${response.status}.`, {
-        status: response.status,
-        endpoint: path
-      });
-    }
+      const data = (await response.json()) as T;
+      apiCache.set(cacheKey, { timestamp: Date.now(), data });
+      return data;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
 
-    return (await response.json()) as T;
-  } catch (error: any) {
-    if (error instanceof ApiError) throw error;
+      if (attempt < retries && !callerSignal?.aborted) {
+        attempt++;
+        // Jittered backoff (300ms, 600ms...)
+        await new Promise((r) => setTimeout(r, attempt * 300));
+        continue;
+      }
 
-    // A caller-initiated abort is not a failure worth reporting.
-    const timedOut = error?.name === 'AbortError' && !callerSignal?.aborted;
-    if (error?.name === 'AbortError') {
-      throw new ApiError(timedOut ? 'Request timed out.' : 'Request cancelled.', {
+      // Check stale cache fallback if network failed (PRD-017)
+      if (useStaleCacheOnError && apiCache.has(cacheKey)) {
+        const cached = apiCache.get(cacheKey)!;
+        return cached.data as T;
+      }
+
+      if (error instanceof ApiError) throw error;
+
+      const timedOut = error?.name === 'AbortError' && !callerSignal?.aborted;
+      if (error?.name === 'AbortError') {
+        throw new ApiError(timedOut ? 'Request timed out.' : 'Request cancelled.', {
+          endpoint: path,
+          isTimeout: timedOut
+        });
+      }
+
+      throw new ApiError('Network request failed.', {
         endpoint: path,
-        isTimeout: timedOut
+        isNetworkFailure: true
       });
+    } finally {
+      clearTimeout(timeoutId);
+      if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
     }
-
-    throw new ApiError('Network request failed.', {
-      endpoint: path,
-      isNetworkFailure: true
-    });
-  } finally {
-    clearTimeout(timeoutId);
-    if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
   }
+
+  throw new ApiError('Network request failed after retries.', {
+    endpoint: path,
+    isNetworkFailure: true
+  });
 }
 
 export { API_BASE_URL };

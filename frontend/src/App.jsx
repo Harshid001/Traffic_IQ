@@ -9,8 +9,9 @@ import WhatIfDeparture from './components/WhatIfDeparture';
 import PredictiveRoadAlertBanner from './components/PredictiveRoadAlertBanner';
 import PreferenceSelector from './components/PreferenceSelector';
 import EvaluationBenchmarkModal from './components/EvaluationBenchmarkModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { calculateRoutes, explainRoute, evaluateDrivingAlerts } from './services/api';
-import { MapPin, Navigation, RefreshCw, Layers, ShieldCheck, Zap } from 'lucide-react';
+import { Navigation, RefreshCw, AlertCircle } from 'lucide-react';
 
 const CORRIDORS = [
   { id: 'bangalore_tech_corridor', name: 'Bengaluru: MG Road → Whitefield' },
@@ -26,6 +27,7 @@ export default function App() {
   const [routeData, setRouteData] = useState(null);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [isExplaining, setIsExplaining] = useState(false);
 
   // Driving Simulation State
@@ -46,6 +48,7 @@ export default function App() {
 
   async function fetchRoutes() {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await calculateRoutes({
         corridor_preset: corridor,
@@ -61,6 +64,7 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to calculate routes:', e);
+      setError(e?.message || 'Unable to connect to backend routing service. Please ensure the backend is running.');
     } finally {
       setIsLoading(false);
     }
@@ -127,141 +131,160 @@ export default function App() {
     routeData?.routes?.find((r) => r.id === selectedRouteId) || routeData?.routes?.[0];
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col">
-      {/* Top Header */}
-      <Header
-        routingProvenance={routeData?.routing_provenance}
-        trafficProvenance={routeData?.traffic_provenance}
-        onOpenBenchmark={() => setIsBenchmarkOpen(true)}
-        isSimulatingDrive={isSimulatingDrive}
-        onToggleSimulateDrive={() => setIsSimulatingDrive(!isSimulatingDrive)}
-        trafficMode={trafficMode}
-        onToggleTrafficMode={() => setTrafficMode(trafficMode === 'REAL' ? 'DEMO' : 'REAL')}
-      />
-
-      {/* Main Content Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 flex flex-col gap-5">
-        {/* Predictive Road Alert Banner (Proactive Notification Toast) */}
-        <PredictiveRoadAlertBanner
-          alert={activeAlert}
-          onDismiss={() => setActiveAlert(null)}
-          onSwitchRoute={(newRouteId) => {
-            setSelectedRouteId(newRouteId);
-            setActiveAlert(null);
-          }}
+    <ErrorBoundary onReset={fetchRoutes}>
+      <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col">
+        {/* Top Header */}
+        <Header
+          routingProvenance={routeData?.routing_provenance}
+          trafficProvenance={routeData?.traffic_provenance}
+          onOpenBenchmark={() => setIsBenchmarkOpen(true)}
+          isSimulatingDrive={isSimulatingDrive}
+          onToggleSimulateDrive={() => setIsSimulatingDrive(!isSimulatingDrive)}
+          trafficMode={trafficMode}
+          onToggleTrafficMode={() => setTrafficMode(trafficMode === 'REAL' ? 'DEMO' : 'REAL')}
         />
 
-        {/* Top Control Bar: Corridor Presets & Preferences */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Corridor Preset Picker */}
-          <div className="lg:col-span-4 glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Navigation className="w-3.5 h-3.5 text-emerald-400" />
-                  Navigation Corridor
-                </span>
-                <span className="text-[10px] font-mono text-slate-400">OSRM Linked</span>
-              </div>
-              <div className="space-y-1.5">
-                {CORRIDORS.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setCorridor(c.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                      corridor === c.id
-                        ? 'bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 shadow-sm'
-                        : 'bg-slate-900/50 hover:bg-slate-900 text-slate-300 border border-transparent'
-                    }`}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Main Content Layout */}
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 flex flex-col gap-5">
+          {/* Predictive Road Alert Banner (Proactive Notification Toast) */}
+          <PredictiveRoadAlertBanner
+            alert={activeAlert}
+            onDismiss={() => setActiveAlert(null)}
+            onSwitchRoute={(newRouteId) => {
+              setSelectedRouteId(newRouteId);
+              setActiveAlert(null);
+            }}
+          />
 
-            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-              <span className="truncate">Origin: {routeData?.origin?.name || 'Loading...'}</span>
+          {/* User Visible Error State Banner (PRD-011) */}
+          {error && (
+            <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/40 flex items-center justify-between gap-3 text-xs" role="alert">
+              <div className="flex items-center gap-2 text-red-300">
+                <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
               <button
                 onClick={fetchRoutes}
-                disabled={isLoading}
-                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-mono text-[11px]"
+                className="px-3 py-1.5 rounded-xl bg-red-900/80 hover:bg-red-800 text-white font-medium flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
-                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>Recalculate</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry
               </button>
+            </div>
+          )}
+
+          {/* Top Control Bar: Corridor Presets & Preferences */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Corridor Preset Picker */}
+            <div className="lg:col-span-4 glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5 text-emerald-400" />
+                    Navigation Corridor
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">OSRM Linked</span>
+                </div>
+                <div className="space-y-1.5">
+                  {CORRIDORS.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setCorridor(c.id)}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                        corridor === c.id
+                          ? 'bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 shadow-sm'
+                          : 'bg-slate-900/50 hover:bg-slate-900 text-slate-300 border border-transparent'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                <span className="truncate">Origin: {routeData?.origin?.name || (isLoading ? 'Calculating...' : 'Bengaluru Central')}</span>
+                <button
+                  onClick={fetchRoutes}
+                  disabled={isLoading}
+                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-mono text-[11px] cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Recalculate</span>
+                </button>
+              </div>
+            </div>
+
+            {/* User Objective Profile Selector */}
+            <div className="lg:col-span-8">
+              <PreferenceSelector
+                currentProfile={profile}
+                onSelectProfile={(newProfile) => setProfile(newProfile)}
+              />
             </div>
           </div>
 
-          {/* User Objective Profile Selector */}
-          <div className="lg:col-span-8">
-            <PreferenceSelector
-              currentProfile={profile}
-              onSelectProfile={(newProfile) => setProfile(newProfile)}
-            />
+          {/* Central Map & Primary Route Comparison */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Map Cockpit View */}
+            <div className="lg:col-span-7 flex flex-col gap-4">
+              <MapContainer
+                routes={routeData?.routes || []}
+                selectedRouteId={selectedRouteId}
+                onSelectRoute={(id) => setSelectedRouteId(id)}
+                origin={routeData?.origin}
+                destination={routeData?.destination}
+                vehiclePosition={vehiclePosition}
+                isSimulatingDrive={isSimulatingDrive}
+              />
+
+              {/* Traffic Future Vision Timeline */}
+              {selectedRoute && <TrafficFutureVision selectedRoute={selectedRoute} />}
+            </div>
+
+            {/* Route Intelligence Panel */}
+            <div className="lg:col-span-5 flex flex-col gap-4">
+              {/* Side-by-Side Fastest vs Best Comparison */}
+              <RouteComparison
+                routes={routeData?.routes || []}
+                fastestRouteId={routeData?.fastest_route_id}
+                bestRouteId={routeData?.best_route_id}
+                selectedRouteId={selectedRouteId}
+                onSelectRoute={(id) => setSelectedRouteId(id)}
+                areDifferent={routeData?.are_different}
+              />
+
+              {/* Why This Route? Local AI Explanation Card */}
+              <AiExplanationCard
+                explanationData={routeData?.explanation}
+                verifiedFacts={routeData?.verified_facts}
+                onRefreshExplanation={handleRefreshExplanation}
+                isLoadingExplanation={isExplaining}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Central Map & Primary Route Comparison */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Map Cockpit View */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            <MapContainer
-              routes={routeData?.routes || []}
-              selectedRouteId={selectedRouteId}
-              onSelectRoute={(id) => setSelectedRouteId(id)}
-              origin={routeData?.origin}
-              destination={routeData?.destination}
-              vehiclePosition={vehiclePosition}
-              isSimulatingDrive={isSimulatingDrive}
-            />
+          {/* Lower Row: What-If Departure & Traffic DNA Visualizer */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* What-If Departure Planner */}
+            {routeData?.routes && <WhatIfDeparture routes={routeData.routes} />}
 
-            {/* Traffic Future Vision Timeline */}
-            {selectedRoute && <TrafficFutureVision selectedRoute={selectedRoute} />}
+            {/* 24-Hour Traffic DNA Bar Visualizer */}
+            {selectedRoute && <TrafficDnaChart selectedRoute={selectedRoute} />}
           </div>
+        </main>
 
-          {/* Route Intelligence Panel */}
-          <div className="lg:col-span-5 flex flex-col gap-4">
-            {/* Side-by-Side Fastest vs Best Comparison */}
-            <RouteComparison
-              routes={routeData?.routes || []}
-              fastestRouteId={routeData?.fastest_route_id}
-              bestRouteId={routeData?.best_route_id}
-              selectedRouteId={selectedRouteId}
-              onSelectRoute={(id) => setSelectedRouteId(id)}
-              areDifferent={routeData?.are_different}
-            />
+        {/* Footer */}
+        <footer className="w-full bg-[#080c14] border-t border-slate-800/80 px-4 py-3 text-center text-xs text-slate-500">
+          Predictive &bull; Explainable &bull; Multi-Objective &bull; Zero-Hallucination Local AI Engine &bull; Built with FastAPI, Chronos-2, OSRM & React
+        </footer>
 
-            {/* Why This Route? Local AI Explanation Card */}
-            <AiExplanationCard
-              explanationData={routeData?.explanation}
-              verifiedFacts={routeData?.verified_facts}
-              onRefreshExplanation={handleRefreshExplanation}
-              isLoadingExplanation={isExplaining}
-            />
-          </div>
-        </div>
-
-        {/* Lower Row: What-If Departure & Traffic DNA Visualizer */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* What-If Departure Planner */}
-          {routeData?.routes && <WhatIfDeparture routes={routeData.routes} />}
-
-          {/* 24-Hour Traffic DNA Bar Visualizer */}
-          {selectedRoute && <TrafficDnaChart selectedRoute={selectedRoute} />}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="w-full bg-[#080c14] border-t border-slate-800/80 px-4 py-3 text-center text-xs text-slate-500">
-        Predictive &bull; Explainable &bull; Multi-Objective &bull; Zero-Hallucination Local AI Engine &bull; Built with FastAPI, Chronos-2, OSRM & React
-      </footer>
-
-      {/* Evaluation Benchmark Modal */}
-      <EvaluationBenchmarkModal
-        isOpen={isBenchmarkOpen}
-        onClose={() => setIsBenchmarkOpen(false)}
-      />
-    </div>
+        {/* Evaluation Benchmark Modal */}
+        <EvaluationBenchmarkModal
+          isOpen={isBenchmarkOpen}
+          onClose={() => setIsBenchmarkOpen(false)}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }

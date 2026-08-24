@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, ShieldCheck, CheckCircle, AlertOctagon, Code, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Bot, ShieldCheck, CheckCircle, AlertOctagon, Info, Code, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 
 export default function AiExplanationCard({
   explanationData,
@@ -9,13 +9,62 @@ export default function AiExplanationCard({
 }) {
   const [showFactsJson, setShowFactsJson] = useState(false);
 
-  if (!explanationData) return null;
+  if (!explanationData) {
+    return (
+      <div className="glass-panel rounded-2xl p-5 border border-slate-800 text-center text-xs text-slate-400">
+        AI Explanation is not available for this route.
+      </div>
+    );
+  }
 
-  const isPassed = explanationData.validation_status === 'PASSED';
-  const isFallback = explanationData.validation_status?.includes('FALLBACK');
+  const status = explanationData.validation_status || 'UNKNOWN';
+  const isPassed = status === 'PASSED';
+  const isFallback = status.includes('FALLBACK') || status.includes('OFFLINE');
+  const isRejected = status.includes('REJECTED') || status.includes('FAILED');
+
+  const layers = explanationData.validator_layers || {
+    layer_1_numbers: isPassed ? 'PASS' : (isFallback ? 'VERIFIED_FACTS' : 'WARN'),
+    layer_2_facts: isPassed ? 'PASS' : (isFallback ? 'VERIFIED_FACTS' : 'WARN'),
+    layer_3_decisions: isPassed ? 'PASS' : (isFallback ? 'VERIFIED_FACTS' : 'WARN'),
+  };
+
+  const getBadgeStyle = (layerStatus) => {
+    if (layerStatus === 'PASS' || layerStatus === 'VERIFIED_FACTS') {
+      return 'bg-emerald-950/60 border-emerald-500/30 text-emerald-300';
+    }
+    if (layerStatus === 'WARN' || layerStatus === 'FALLBACK') {
+      return 'bg-amber-950/60 border-amber-500/30 text-amber-300';
+    }
+    return 'bg-red-950/60 border-red-500/30 text-red-300';
+  };
+
+  const getStatusBadge = () => {
+    if (isPassed) {
+      return (
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-emerald-400" />
+          PASSED (3/3 LAYERS)
+        </span>
+      );
+    }
+    if (isFallback) {
+      return (
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+          <ShieldCheck className="w-3 h-3 text-cyan-400" />
+          DETERMINISTIC FALLBACK
+        </span>
+      );
+    }
+    return (
+      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-950/80 text-red-300 border border-red-500/40 flex items-center gap-1">
+        <AlertOctagon className="w-3 h-3 text-red-400" />
+        VALIDATION {status}
+      </span>
+    );
+  };
 
   return (
-    <div className="glass-panel rounded-2xl p-5 border border-slate-800 relative overflow-hidden">
+    <div className="glass-panel rounded-2xl p-5 border border-slate-800 relative overflow-hidden" role="region" aria-label="AI Route Explanation">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800/80">
         <div className="flex items-center gap-2.5">
@@ -37,14 +86,15 @@ export default function AiExplanationCard({
 
         {/* 3-Layer Validator Status Badges */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-emerald-400" /> Layer 1: Numbers
+          {getStatusBadge()}
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 ${getBadgeStyle(layers.layer_1_numbers)}`}>
+            L1: Numbers
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-emerald-400" /> Layer 2: Facts
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 ${getBadgeStyle(layers.layer_2_facts)}`}>
+            L2: Facts
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-emerald-400" /> Layer 3: Decisions
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 ${getBadgeStyle(layers.layer_3_decisions)}`}>
+            L3: Decisions
           </span>
         </div>
       </div>
@@ -59,7 +109,8 @@ export default function AiExplanationCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowFactsJson(!showFactsJson)}
-            className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-colors text-[11px] font-mono"
+            aria-expanded={showFactsJson}
+            className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-colors text-[11px] font-mono cursor-pointer"
           >
             <Code className="w-3.5 h-3.5 text-slate-500" />
             <span>{showFactsJson ? 'Hide Verified Facts' : 'Inspect Verified Facts'}</span>
@@ -70,7 +121,8 @@ export default function AiExplanationCard({
         <button
           onClick={onRefreshExplanation}
           disabled={isLoadingExplanation}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 transition-all"
+          aria-label="Re-verify AI explanation"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${isLoadingExplanation ? 'animate-spin' : ''}`} />
           <span>Re-verify AI</span>
