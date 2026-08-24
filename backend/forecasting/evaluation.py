@@ -8,16 +8,19 @@ class ForecastEvaluator:
         Computes empirical MAE, RMSE, and MAPE comparing Chronos-2 (P50) against the Baseline model
         from historical evaluation logs in SQLite.
         """
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-        SELECT actual_congestion, chronos_p50, baseline_pred, horizon_minutes
-        FROM forecast_eval_logs
-        ORDER BY id DESC LIMIT 500
-        """)
-        rows = cursor.fetchall()
-        conn.close()
+        rows = []
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT actual_congestion, chronos_p50, baseline_pred, horizon_minutes
+            FROM forecast_eval_logs
+            ORDER BY id DESC LIMIT 500
+            """)
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception:
+            rows = []
         
         if not rows or len(rows) == 0:
             return {

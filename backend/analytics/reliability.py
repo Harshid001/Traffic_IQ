@@ -19,15 +19,18 @@ class ReliabilityEngine:
         segment_stats = []
         for seg in segments:
             seg_id = seg["segment_id"]
-            # Look for same hour in past 14 days (+/- 1 hour window)
-            cursor.execute("""
-            SELECT congestion, current_speed, incident_flag 
-            FROM segment_history 
-            WHERE segment_id = ? AND hour BETWEEN ? AND ?
-            ORDER BY timestamp DESC LIMIT 60
-            """, (seg_id, max(0, current_hour - 1), min(23, current_hour + 1)))
-            
-            rows = cursor.fetchall()
+            rows = []
+            try:
+                # Look for same hour in past 14 days (+/- 1 hour window)
+                cursor.execute("""
+                SELECT congestion, current_speed, incident_flag 
+                FROM segment_history 
+                WHERE segment_id = ? AND hour BETWEEN ? AND ?
+                ORDER BY timestamp DESC LIMIT 60
+                """, (seg_id, max(0, current_hour - 1), min(23, current_hour + 1)))
+                rows = cursor.fetchall()
+            except Exception:
+                rows = []
             if rows and len(rows) >= 5:
                 cong_vals = [r["congestion"] for r in rows]
                 speeds = [r["current_speed"] for r in rows]

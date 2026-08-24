@@ -25,6 +25,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
+      - name: Seed Historical Database
+        run: |
+          python -m backend.database.seed_data
+
       - name: Run Backend Pytest Suite
         run: |
           python -m pytest backend/tests/ -v
