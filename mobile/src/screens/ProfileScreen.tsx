@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.cardPadding,
-    paddingBottom: spacing.xxl
+    paddingBottom: 110
   },
   contentWrapper: {
     width: '100%',

@@ -121,10 +121,20 @@ export const colors = {
     severe: '#EF4444'    // 81-100%
   },
 
-  /** Map polyline colors (decorative, not subject to text contrast rules). */
+  /** Map polyline colors and multi-layer rendering tokens. */
   map: {
     inactive: '#475569',
-    inactiveDim: '#334155'
+    inactiveDim: '#334155',
+    casing: '#040814',
+    casingLight: '#FFFFFF',
+    laserCore: 'rgba(255, 255, 255, 0.95)',
+    activeGlow: 'rgba(16, 185, 129, 0.45)',
+    altFastestGlow: 'rgba(139, 92, 246, 0.35)',
+    altStandardGlow: 'rgba(100, 116, 139, 0.25)',
+    originPin: '#06B6D4',
+    destPin: '#10B981',
+    hazardPin: '#EF4444'
   }
 };
+
 

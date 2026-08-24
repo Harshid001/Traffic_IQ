@@ -45,10 +45,10 @@ export const BottomSheetContainer = React.memo(BottomSheetContainerBase);
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 82,
-    left: 0,
-    right: 0,
-    zIndex: 25
+    bottom: 84,
+    left: 12,
+    right: 12,
+    zIndex: 40
   },
   backdrop: {
     flex: 1,

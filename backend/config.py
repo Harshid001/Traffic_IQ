@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         "http://localhost:8000",
         "http://localhost:8005",
         "http://127.0.0.1:8005",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
         "*",
     ]
 
@@ -56,10 +58,13 @@ class Settings(BaseSettings):
     TOMTOM_API_KEY: str = os.getenv("TOMTOM_API_KEY", "")
     HERE_API_KEY: str = os.getenv("HERE_API_KEY", "")
     
-    # Ollama Local LLM Configuration
+    # LLM Configuration (Ollama Local & Google Gemini Cloud)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "auto") # "auto", "ollama", "gemini"
     OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "phi4-mini")
-    OLLAMA_TIMEOUT_SECONDS: float = 8.0
+    OLLAMA_TIMEOUT_SECONDS: float = 25.0
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
     # Database
     DATABASE_PATH: str = str(BASE_DIR / "database" / "traffic_history.db")

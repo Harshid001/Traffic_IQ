@@ -18,6 +18,8 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
   const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
   const setActiveTab = useNavigationStore(s => s.setActiveTab);
+  const setBottomSheetExpanded = useNavigationStore(s => s.setBottomSheetExpanded);
+  const startNavigation = useNavigationStore(s => s.startNavigation);
 
   const isSelected = route.id === selectedRouteId;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -39,10 +41,21 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
     setSelectedRouteId(route.id);
   }, [setSelectedRouteId, route.id]);
 
-  const handleNavigate = useCallback(() => {
+  const handlePreview = useCallback(() => {
+    setSelectedRouteId(route.id);
+    setBottomSheetExpanded(false);
+    setActiveTab('navigate');
+  }, [setSelectedRouteId, setBottomSheetExpanded, setActiveTab, route.id]);
+
+  const handleStartTrip = useCallback(async () => {
     setSelectedRouteId(route.id);
     setActiveTab('navigate');
-  }, [setSelectedRouteId, setActiveTab, route.id]);
+    try {
+      await startNavigation();
+    } catch {
+      // Error state managed by navigationStore
+    }
+  }, [setSelectedRouteId, setActiveTab, startNavigation, route.id]);
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -140,8 +153,10 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
         <View style={styles.actionRow}>
           <TouchableOpacity
             activeOpacity={0.75}
-            onPress={handleNavigate}
+            onPress={handlePreview}
             style={styles.previewBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Preview ${route.name} on map`}
           >
             <MapPin size={14} color={colors.primary} />
             <Text style={styles.previewBtnText}>Preview On Map</Text>
@@ -149,8 +164,10 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
 
           <TouchableOpacity
             activeOpacity={0.75}
-            onPress={handleNavigate}
+            onPress={handleStartTrip}
             style={styles.driveBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Start trip on ${route.name}`}
           >
             <Navigation size={14} color={colors.text.onAccent} />
             <Text style={styles.driveBtnText}>Start Trip</Text>

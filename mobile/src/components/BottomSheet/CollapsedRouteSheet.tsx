@@ -174,48 +174,8 @@ const CollapsedRouteSheetBase: React.FC = () => {
         accessibilityRole="button"
         accessibilityLabel="Expand route details"
       >
-        <GripHorizontal size={20} color={colors.borderStrong} />
+        <View style={styles.dragBar} />
       </TouchableOpacity>
-
-      {/* Interactive Candidate Routes Selector Bar */}
-      {routes.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.routeSelectorScroll}
-        >
-          {routes.map(r => {
-            const isSelected = r.id === selectedRoute.id;
-            return (
-              <TouchableOpacity
-                key={r.id}
-                activeOpacity={0.75}
-                onPress={() => setSelectedRouteId(r.id)}
-                style={[styles.routeSelectChip, isSelected && styles.routeSelectChipActive]}
-              >
-                <View style={styles.routeSelectChipHeader}>
-                  {r.is_best ? (
-                    <ShieldCheck size={11} color={isSelected ? colors.primary : colors.text.muted} />
-                  ) : r.is_fastest ? (
-                    <Zap size={11} color={isSelected ? colors.fastest : colors.text.muted} />
-                  ) : null}
-                  <Text
-                    style={[
-                      styles.routeSelectChipLabel,
-                      isSelected && { color: r.is_best ? colors.primary : colors.fastest }
-                    ]}
-                  >
-                    {r.is_best ? 'RECOMMENDED' : r.is_fastest ? 'FASTEST' : 'ALT'}
-                  </Text>
-                </View>
-                <Text style={[styles.routeSelectChipEta, isSelected && styles.routeSelectChipEtaActive]}>
-                  {r.predicted_eta_p50} min <Text style={styles.routeSelectChipDist}>• {r.distance_km}km</Text>
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
 
       {/* Primary Route Summary */}
       <View style={styles.summaryRow}>
@@ -223,12 +183,12 @@ const CollapsedRouteSheetBase: React.FC = () => {
           <View style={styles.badgeRow}>
             {isBest ? (
               <View style={styles.bestBadge}>
-                <ShieldCheck size={12} color={colors.primary} />
+                <ShieldCheck size={11} color={colors.primary} />
                 <Text style={styles.bestBadgeText}>Smart Recommendation</Text>
               </View>
             ) : isFastest ? (
               <View style={styles.fastestBadge}>
-                <Zap size={12} color={colors.fastest} />
+                <Zap size={11} color={colors.fastest} />
                 <Text style={styles.fastestBadgeText}>Fastest Route</Text>
               </View>
             ) : (
@@ -248,7 +208,7 @@ const CollapsedRouteSheetBase: React.FC = () => {
 
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>
-              Live Traffic: <Text style={styles.metaHighlight}>{selectedRoute.congestion_category}</Text>
+              Live: <Text style={styles.metaHighlight}>{selectedRoute.congestion_category}</Text>
             </Text>
             <Text style={styles.metaDot}>•</Text>
             <Text style={styles.metaText}>
@@ -265,7 +225,7 @@ const CollapsedRouteSheetBase: React.FC = () => {
           accessibilityRole="button"
           accessibilityLabel="Expand route details"
         >
-          <ChevronUp size={18} color={colors.text.secondary} />
+          <ChevronUp size={16} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -291,7 +251,7 @@ const CollapsedRouteSheetBase: React.FC = () => {
           <ActivityIndicator size="small" color={colors.text.onAccent} />
         ) : (
           <Navigation2
-            size={20}
+            size={18}
             color={colors.text.onAccent}
             strokeWidth={3}
             style={{ transform: [{ rotate: '45deg' }] }}
@@ -309,73 +269,35 @@ export const CollapsedRouteSheet = React.memo(CollapsedRouteSheetBase);
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderStrong,
-    borderTopLeftRadius: spacing.radius.xxl,
-    borderTopRightRadius: spacing.radius.xxl,
-    padding: spacing.cardPadding,
-    paddingBottom: spacing.xxl,
+    backgroundColor: colors.overlaySurface,
+    borderWidth: 1,
+    borderColor: colors.glass.strokeStrong,
+    borderRadius: 22,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -6 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
-    shadowRadius: 16
+    shadowRadius: 18
   },
   dragBarContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 24,
-    marginBottom: spacing.xs
+    height: 18,
+    marginBottom: 4
   },
-  routeSelectorScroll: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    paddingVertical: 2
-  },
-  routeSelectChip: {
-    backgroundColor: colors.card,
-    borderRadius: spacing.radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    minWidth: 110
-  },
-  routeSelectChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint
-  },
-  routeSelectChipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2
-  },
-  routeSelectChipLabel: {
-    fontSize: 9,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.muted,
-    letterSpacing: 0.5
-  },
-  routeSelectChipEta: {
-    fontSize: 12,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary
-  },
-  routeSelectChipEtaActive: {
-    color: colors.text.bright
-  },
-  routeSelectChipDist: {
-    fontSize: 10,
-    fontWeight: typography.weights.regular,
-    color: colors.text.muted
+  dragBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong
   },
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
     gap: spacing.md
   },
   summaryInfo: {
@@ -385,7 +307,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.xs
+    marginBottom: 2
   },
   bestBadge: {
     flexDirection: 'row',
@@ -396,10 +318,10 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryBorder,
     borderRadius: spacing.radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2
+    paddingVertical: 1
   },
   bestBadgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.bold,
     color: colors.primary
   },
@@ -412,10 +334,10 @@ const styles = StyleSheet.create({
     borderColor: colors.fastestBorder,
     borderRadius: spacing.radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2
+    paddingVertical: 1
   },
   fastestBadgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.bold,
     color: colors.fastest
   },
@@ -423,37 +345,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral,
     borderRadius: spacing.radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2
+    paddingVertical: 1
   },
   altBadgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: typography.weights.semibold,
     color: colors.text.secondary
   },
   tollText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: typography.weights.semibold,
     color: colors.text.muted
   },
   etaRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.md,
-    marginBottom: spacing.xs
+    gap: spacing.sm,
+    marginBottom: 2
   },
   etaBig: {
-    fontSize: typography.sizes.hero,
-    lineHeight: 38,
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   etaUnit: {
-    fontSize: typography.sizes.h3,
+    fontSize: typography.sizes.caption,
     fontWeight: typography.weights.semibold,
     color: colors.primary
   },
   distBig: {
-    fontSize: typography.sizes.h2,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.secondary
   },
@@ -463,7 +385,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   metaText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: colors.text.secondary
   },
   metaHighlight: {
@@ -472,16 +394,16 @@ const styles = StyleSheet.create({
   },
   metaDot: {
     color: colors.text.muted,
-    fontSize: 11
+    fontSize: 10
   },
   metaVal: {
     color: colors.text.bright,
     fontWeight: typography.weights.semibold
   },
   expandButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -493,23 +415,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderRadius: spacing.radius.xl,
-    paddingVertical: spacing.md,
-    minHeight: 52,
-    gap: spacing.sm,
+    borderRadius: spacing.radius.lg,
+    paddingVertical: spacing.sm,
+    minHeight: 46,
+    gap: spacing.xs,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10
+    shadowOpacity: 0.35,
+    shadowRadius: 8
   },
   startButtonLoading: {
     opacity: 0.8
   },
   startButtonText: {
-    fontSize: typography.sizes.body,
+    fontSize: 13,
     fontWeight: typography.weights.extrabold,
     color: colors.text.onAccent,
-    letterSpacing: 0.5
+    letterSpacing: 0.3
   },
   progressRow: {
     flexDirection: 'row',

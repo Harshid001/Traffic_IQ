@@ -70,6 +70,7 @@ export const NavigateScreen: React.FC = () => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedPoi, setSelectedPoi] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [focusMapMode, setFocusMapMode] = useState(false);
   const { dialogMaxWidth } = useLayout();
 
   /** Active Drive Simulation Ticker Loop. */
@@ -112,90 +113,125 @@ export const NavigateScreen: React.FC = () => {
       <View style={styles.overlayStack} pointerEvents="box-none">
         {!isNavigating && (
           <>
-            {/* Interactive Destination Search Box */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setPickerOpen(true)}
-              style={styles.searchBox}
-              accessibilityRole="button"
-              accessibilityLabel={`Destination: ${destinationLabel}. Tap to change destination.`}
-            >
-              <View style={styles.searchIconRing}>
-                <Search size={16} color={colors.primaryBright} />
-              </View>
-              <View style={styles.searchTextCol}>
-                <Text style={styles.searchLabel}>SEARCH DESTINATION OR ROUTE</Text>
-                <Text style={styles.searchVal} numberOfLines={1}>
+            {focusMapMode ? (
+              /* Compact Collapsed Top Bar in Focus Map Mode */
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setFocusMapMode(false)}
+                style={styles.compactFocusBar}
+                accessibilityRole="button"
+                accessibilityLabel="Exit full map focus mode and show destination controls"
+              >
+                <View style={styles.focusBarDot} />
+                <Text style={styles.focusBarText} numberOfLines={1}>
                   {destinationLabel}
                 </Text>
-              </View>
-              <View style={styles.searchActionPill}>
-                <Text style={styles.searchActionText}>Change</Text>
-                <ChevronRight size={14} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
-
-            {/* Quick Destination Shortcuts (Home, Work, Airport) */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsScroll}
-            >
-              {SHORTCUT_DESTINATIONS.map(item => {
-                const isSelected = selectedCorridor === item.corridorId;
-                const IconComponent = item.icon;
-                return (
+                <View style={styles.focusRestorePill}>
+                  <Text style={styles.focusRestoreText}>Show Controls</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <>
+                {/* Interactive Destination Search Box */}
+                <View style={styles.searchRow}>
                   <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={0.75}
-                    onPress={() => setSelectedCorridor(item.corridorId)}
-                    style={[styles.shortcutChip, isSelected && styles.shortcutChipSelected]}
+                    activeOpacity={0.85}
+                    onPress={() => setPickerOpen(true)}
+                    style={styles.searchBox}
                     accessibilityRole="button"
-                    accessibilityLabel={`Navigate to ${item.label}`}
+                    accessibilityLabel={`Destination: ${destinationLabel}. Tap to change destination.`}
                   >
-                    <IconComponent size={13} color={isSelected ? colors.primary : colors.text.secondary} />
-                    <Text style={[styles.shortcutText, isSelected && styles.shortcutTextSelected]}>
-                      {item.label}
-                    </Text>
+                    <View style={styles.searchIconRing}>
+                      <Search size={15} color={colors.primaryBright} strokeWidth={2.5} />
+                    </View>
+                    <View style={styles.searchTextCol}>
+                      <Text style={styles.searchLabel}>DESTINATION CORRIDOR</Text>
+                      <Text style={styles.searchVal} numberOfLines={1}>
+                        {destinationLabel}
+                      </Text>
+                    </View>
+                    <View style={styles.searchActionPill}>
+                      <Text style={styles.searchActionText}>Change</Text>
+                      <ChevronRight size={13} color={colors.primary} />
+                    </View>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
 
-            {/* Quick POI Amenities on Route */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.poiScroll}
-            >
-              {QUICK_POIS.map(poi => {
-                const active = selectedPoi === poi.id;
-                const Icon = poi.icon;
-                return (
+                  {/* Focus / Expand Map Viewport Button */}
                   <TouchableOpacity
-                    key={poi.id}
-                    activeOpacity={0.75}
-                    onPress={() => togglePoi(poi.id)}
-                    style={[styles.poiChip, active && { borderColor: poi.color, backgroundColor: colors.surface }]}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: active }}
+                    activeOpacity={0.8}
+                    onPress={() => setFocusMapMode(true)}
+                    style={styles.focusMapToggle}
+                    accessibilityRole="button"
+                    accessibilityLabel="Focus map and hide search controls"
                   >
-                    <Icon size={12} color={active ? poi.color : colors.text.muted} />
-                    <Text style={[styles.poiText, active && { color: colors.text.bright, fontWeight: '700' }]}>
-                      {poi.label}
-                    </Text>
+                    <Sparkles size={14} color={colors.primaryBright} />
+                    <Text style={styles.focusMapToggleText}>Map</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                </View>
 
-            {routesError && (
-              <ErrorState
-                title="Could not load routes"
-                message={routesError}
-                onRetry={() => fetchRoutes(selectedCorridor)}
-                retryLabel="Retry"
-              />
+                {/* Quick Destination Shortcuts (Home, Work, Airport) */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipsScroll}
+                >
+                  {SHORTCUT_DESTINATIONS.map(item => {
+                    const isSelected = selectedCorridor === item.corridorId;
+                    const IconComponent = item.icon;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        activeOpacity={0.75}
+                        onPress={() => setSelectedCorridor(item.corridorId)}
+                        style={[styles.shortcutChip, isSelected && styles.shortcutChipSelected]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Navigate to ${item.label}`}
+                      >
+                        <IconComponent size={12} color={isSelected ? colors.primary : colors.text.secondary} />
+                        <Text style={[styles.shortcutText, isSelected && styles.shortcutTextSelected]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Quick POI Amenities on Route */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.poiScroll}
+                >
+                  {QUICK_POIS.map(poi => {
+                    const active = selectedPoi === poi.id;
+                    const Icon = poi.icon;
+                    return (
+                      <TouchableOpacity
+                        key={poi.id}
+                        activeOpacity={0.75}
+                        onPress={() => togglePoi(poi.id)}
+                        style={[styles.poiChip, active && { borderColor: poi.color, backgroundColor: colors.surface }]}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: active }}
+                      >
+                        <Icon size={12} color={active ? poi.color : colors.text.muted} />
+                        <Text style={[styles.poiText, active && { color: colors.text.bright, fontWeight: '700' }]}>
+                          {poi.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {routesError && (
+                  <ErrorState
+                    title="Could not load routes"
+                    message={routesError}
+                    onRetry={() => fetchRoutes(selectedCorridor)}
+                    retryLabel="Retry"
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -321,20 +357,85 @@ const styles = StyleSheet.create({
     zIndex: 35,
     gap: spacing.sm
   },
-  searchBox: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    gap: spacing.xs
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.overlaySurface,
+    borderWidth: 1.5,
     borderColor: colors.borderStrong,
     borderRadius: spacing.radius.xl,
     paddingHorizontal: spacing.md,
-    minHeight: 52,
-    gap: spacing.md,
+    minHeight: 48,
+    gap: spacing.sm,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12
+  },
+  focusMapToggle: {
+    height: 48,
+    paddingHorizontal: 10,
+    borderRadius: spacing.radius.xl,
+    backgroundColor: colors.overlaySurface,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8
+  },
+  focusMapToggleText: {
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
+    color: colors.primaryBright
+  },
+  compactFocusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.overlaySurface,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    gap: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10
+  },
+  focusBarDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.primaryBright
+  },
+  focusBarText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: typography.weights.bold,
+    color: colors.text.bright
+  },
+  focusRestorePill: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: spacing.radius.pill
+  },
+  focusRestoreText: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.primaryBright
   },
   searchIconRing: {
     width: 32,

@@ -1,7 +1,30 @@
-import React, { useMemo, useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Sparkles, MessageSquare, Check, HelpCircle, ArrowRight } from 'lucide-react-native';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
+import {
+  Sparkles,
+  MessageSquare,
+  Bot,
+  User,
+  Send,
+  RotateCcw,
+  ShieldCheck,
+  Clock,
+  Coins,
+  AlertTriangle,
+  Zap
+} from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
+import { askRouteCopilot, buildRouteChatContext, ChatMessage } from '../services/chatService';
 import { WhatIfPlanner } from '../components/Insights/WhatIfPlanner';
 import { ReliabilityScorecard } from '../components/Insights/ReliabilityScorecard';
 import { ProvenanceTracker } from '../components/Insights/ProvenanceTracker';
@@ -12,22 +35,12 @@ import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
-const COPILOT_QUESTIONS = [
-  {
-    id: 'q1',
-    query: 'When is traffic lightest today?',
-    answer: 'Optimal departure window is before 8:00 AM or after 8:15 PM to avoid peak highway delays.'
-  },
-  {
-    id: 'q2',
-    query: 'How much do I save taking the best route?',
-    answer: 'The recommended Smart Route saves ~12–16 mins by avoiding the central junction bottleneck.'
-  },
-  {
-    id: 'q3',
-    query: 'Are there any toll-free alternatives?',
-    answer: 'Yes, check the Routes tab for alternate bypass corridors with ₹0 tolls.'
-  }
+const QUICK_PROMPTS = [
+  { id: 'why', text: 'Why is this route recommended?', icon: ShieldCheck },
+  { id: 'when', text: 'Best departure time today?', icon: Clock },
+  { id: 'tolls', text: 'Toll costs on this route?', icon: Coins },
+  { id: 'bottlenecks', text: 'Any bottlenecks or hazards?', icon: AlertTriangle },
+  { id: 'fastest', text: 'Fastest vs Recommended trade-off?', icon: Zap }
 ];
 
 export const InsightsScreen: React.FC = () => {
@@ -38,14 +51,83 @@ export const InsightsScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
-  const [activeQueryId, setActiveQueryId] = useState<string | null>(null);
+  const [inputQuery, setInputQuery] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatScrollRef = useRef<ScrollView>(null);
 
   const retry = useCallback(() => fetchRoutes(selectedCorridor), [fetchRoutes, selectedCorridor]);
 
+  const routes = routingData?.routes ?? [];
   const selectedRoute = useMemo(() => {
-    const routes = routingData?.routes ?? [];
     return routes.find(r => r.id === selectedRouteId) || routes[0];
-  }, [routingData, selectedRouteId]);
+  }, [routes, selectedRouteId]);
+
+  // Initialize Copilot thread with corridor context
+  useEffect(() => {
+    if (selectedRoute && messages.length === 0) {
+      const bestName = selectedRoute.name || 'your route';
+      const eta = selectedRoute.predicted_eta_p50 ? Math.round(selectedRoute.predicted_eta_p50) : 28;
+      const corridor = routingData?.corridor_name || 'Active Corridor';
+      const initialGreeting: ChatMessage = {
+        id: 'msg-init',
+        sender: 'copilot',
+        text: `Hello! I'm your **TrafficIQ Copilot** powered by **Phi-4-mini**. I have loaded real-time telemetry for **${corridor}** (${selectedRoute.distance_km} km, ~${eta} mins via ${bestName}). Ask me about congestion, departure timings, tolls, or route trade-offs!`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        model: 'phi4-mini',
+        provenance: 'Grounded Live Telemetry'
+      };
+      setMessages([initialGreeting]);
+    }
+  }, [selectedRoute, routingData, messages.length]);
+
+  const handleSendMessage = useCallback(
+    async (textToSend?: string) => {
+      const query = (textToSend || inputQuery).trim();
+      if (!query || isSending) return;
+
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        sender: 'user',
+        text: query,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => [...prev, userMsg]);
+      setInputQuery('');
+      setIsSending(true);
+
+      const routeContext = buildRouteChatContext(routingData, selectedRouteId);
+
+      try {
+        const res = await askRouteCopilot(query, routingData?.corridor_name, routeContext);
+        const copilotMsg: ChatMessage = {
+          id: `copilot-${Date.now()}`,
+          sender: 'copilot',
+          text: res.response,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          model: res.model,
+          provenance: res.provenance
+        };
+        setMessages(prev => [...prev, copilotMsg]);
+      } catch {
+        const errorMsg: ChatMessage = {
+          id: `copilot-${Date.now()}`,
+          sender: 'copilot',
+          text: 'Unable to process query right now. Recommended route remains optimal with steady travel time.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [inputQuery, isSending, routingData, selectedRouteId]
+  );
+
+  const resetChat = useCallback(() => {
+    setMessages([]);
+  }, []);
 
   return (
     <DataStateWrapper
@@ -71,60 +153,166 @@ export const InsightsScreen: React.FC = () => {
           <View style={styles.contentWrapper}>
             {/* Header */}
             <View style={styles.screenHeader}>
-            <View style={styles.titleRow}>
-              <Sparkles size={18} color={colors.primary} />
-              <Text style={styles.titleText}>Driving Copilot</Text>
-            </View>
-            <Text style={styles.subText}>
-              Departure planning, reliability bounds & smart driver assistant
-            </Text>
-          </View>
-
-          {/* Interactive Copilot Quick Queries */}
-          <Card style={styles.queriesCard}>
-            <View style={styles.queriesHeader}>
-              <MessageSquare size={14} color={colors.primary} />
-              <Text style={styles.queriesTitle}>ASK SMART COPILOT</Text>
-            </View>
-
-            <View style={styles.queryPillsRow}>
-              {COPILOT_QUESTIONS.map(item => {
-                const isActive = activeQueryId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={0.75}
-                    onPress={() => setActiveQueryId(isActive ? null : item.id)}
-                    style={[styles.queryPill, isActive && styles.queryPillActive]}
-                  >
-                    <Text style={[styles.queryPillText, isActive && styles.queryPillTextActive]}>
-                      {item.query}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {activeQueryId && (
-              <View style={styles.answerBox}>
-                <View style={styles.answerIcon}>
-                  <Sparkles size={13} color={colors.primaryBright} />
+              <View style={styles.titleRow}>
+                <Sparkles size={18} color={colors.primary} />
+                <Text style={styles.titleText}>Driving Copilot</Text>
+                <View style={styles.modelBadge}>
+                  <Text style={styles.modelBadgeText}>phi4-mini</Text>
                 </View>
-                <Text style={styles.answerText}>
-                  {COPILOT_QUESTIONS.find(q => q.id === activeQueryId)?.answer}
-                </Text>
               </View>
-            )}
-          </Card>
+              <Text style={styles.subText}>
+                Live neural in-car assistant grounded on active route telemetry
+              </Text>
+            </View>
 
-          {/* Smart Departure Assistant */}
-          <WhatIfPlanner />
+            {/* Live Interactive AI Copilot Chat Card */}
+            <Card style={styles.chatCard}>
+              <View style={styles.chatCardHeader}>
+                <View style={styles.copilotHeaderLeft}>
+                  <View style={styles.copilotAvatar}>
+                    <Bot size={16} color={colors.primaryBright} />
+                  </View>
+                  <View>
+                    <View style={styles.chatTitleRow}>
+                      <Text style={styles.chatTitle}>REAL-TIME AI COPILOT</Text>
+                      <View style={styles.livePulseDot} />
+                    </View>
+                    <Text style={styles.chatSubTitle}>
+                      {routingData?.corridor_name || 'Active Corridor'} Context Loaded
+                    </Text>
+                  </View>
+                </View>
 
-          {/* Driver On-Time Confidence Scorecard */}
-          <ReliabilityScorecard route={selectedRoute} />
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={resetChat}
+                  style={styles.resetBtn}
+                  hitSlop={spacing.hitSlop}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset conversation"
+                >
+                  <RotateCcw size={14} color={colors.text.muted} />
+                </TouchableOpacity>
+              </View>
 
-          {/* System Feeds & Engine Provenance */}
-          <ProvenanceTracker />
+              {/* Quick Suggestion Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickPromptsScroll}
+              >
+                {QUICK_PROMPTS.map(p => {
+                  const Icon = p.icon;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      activeOpacity={0.75}
+                      onPress={() => handleSendMessage(p.text)}
+                      disabled={isSending}
+                      style={styles.quickPromptChip}
+                    >
+                      <Icon size={12} color={colors.primary} />
+                      <Text style={styles.quickPromptText}>{p.text}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Message Thread Box */}
+              <View style={styles.threadContainer}>
+                <ScrollView
+                  ref={chatScrollRef}
+                  style={styles.threadScroll}
+                  contentContainerStyle={styles.threadScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+                >
+                  {messages.map(msg => {
+                    const isUser = msg.sender === 'user';
+                    return (
+                      <View
+                        key={msg.id}
+                        style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowCopilot]}
+                      >
+                        {!isUser && (
+                          <View style={styles.botIconCircle}>
+                            <Bot size={13} color={colors.primaryBright} />
+                          </View>
+                        )}
+
+                        <View style={[styles.bubble, isUser ? styles.userBubble : styles.copilotBubble]}>
+                          <Text style={[styles.bubbleText, isUser ? styles.userBubbleText : styles.copilotBubbleText]}>
+                            {msg.text}
+                          </Text>
+                          <View style={styles.bubbleFooter}>
+                            <Text style={styles.msgTime}>{msg.timestamp}</Text>
+                            {!isUser && (
+                              <Text style={styles.provenanceTag}>
+                                • {msg.provenance || 'Local phi4-mini'}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+
+                        {isUser && (
+                          <View style={styles.userIconCircle}>
+                            <User size={13} color={colors.text.onAccent} />
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+
+                  {isSending && (
+                    <View style={styles.loadingRow}>
+                      <View style={styles.botIconCircle}>
+                        <Bot size={13} color={colors.primaryBright} />
+                      </View>
+                      <View style={styles.loadingBubble}>
+                        <ActivityIndicator size="small" color={colors.primary} />
+                        <Text style={styles.loadingText}>Reasoning with Phi-4-mini & corridor data...</Text>
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                {/* Input Bar */}
+                <View style={styles.inputRow}>
+                  <TextInput
+                    value={inputQuery}
+                    onChangeText={setInputQuery}
+                    placeholder="Ask about traffic, delays, tolls, departure..."
+                    placeholderTextColor={colors.text.dimmed}
+                    style={styles.chatInput}
+                    returnKeyType="send"
+                    onSubmitEditing={() => handleSendMessage()}
+                    editable={!isSending}
+                  />
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => handleSendMessage()}
+                    disabled={isSending || !inputQuery.trim()}
+                    style={[
+                      styles.sendBtn,
+                      (!inputQuery.trim() || isSending) && styles.sendBtnDisabled
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send question to Copilot"
+                  >
+                    <Send size={14} color={colors.text.onAccent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Card>
+
+            {/* Smart Departure Assistant */}
+            <WhatIfPlanner />
+
+            {/* Driver On-Time Confidence Scorecard */}
+            <ReliabilityScorecard route={selectedRoute} />
+
+            {/* System Feeds & Engine Provenance */}
+            <ProvenanceTracker />
           </View>
         </ScrollView>
       )}
@@ -139,7 +327,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.cardPadding,
-    paddingBottom: spacing.xxl
+    paddingBottom: 110
   },
   contentWrapper: {
     width: '100%',
@@ -147,7 +335,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center'
   },
   screenHeader: {
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   titleRow: {
     flexDirection: 'row',
@@ -160,77 +348,249 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
+  modelBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder
+  },
+  modelBadgeText: {
+    fontSize: 9,
+    fontWeight: typography.weights.extrabold,
+    color: colors.primaryBright
+  },
   subText: {
     fontSize: 11,
     color: colors.text.secondary,
     marginTop: 1
   },
-  queriesCard: {
-    padding: spacing.cardPadding,
+  chatCard: {
+    padding: 0,
     marginBottom: spacing.lg,
-    borderRadius: spacing.radius.xl
+    borderRadius: spacing.radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder
   },
-  queriesHeader: {
+  chatCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
   },
-  queriesTitle: {
+  copilotHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  copilotAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  chatTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  chatTitle: {
     fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright,
-    letterSpacing: 0.5
+    letterSpacing: 0.6
   },
-  queryPillsRow: {
-    gap: spacing.xs
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primaryBright
   },
-  queryPill: {
-    backgroundColor: colors.surface,
-    borderRadius: spacing.radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.border
+  chatSubTitle: {
+    fontSize: 9.5,
+    color: colors.text.muted,
+    marginTop: 1
   },
-  queryPillActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint
-  },
-  queryPillText: {
-    fontSize: 11,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.secondary
-  },
-  queryPillTextActive: {
-    color: colors.primaryBright,
-    fontWeight: typography.weights.bold
-  },
-  answerBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    borderRadius: spacing.radius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder
-  },
-  answerIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  resetBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  answerText: {
-    flex: 1,
-    fontSize: typography.sizes.caption,
-    lineHeight: 18,
-    color: colors.text.bright,
+  quickPromptsScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    backgroundColor: colors.overlaySurface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  quickPromptChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: 9,
+    paddingVertical: 4
+  },
+  quickPromptText: {
+    fontSize: 9.5,
+    color: colors.text.secondary,
     fontWeight: typography.weights.medium
+  },
+  threadContainer: {
+    backgroundColor: colors.background
+  },
+  threadScroll: {
+    height: 230
+  },
+  threadScrollContent: {
+    padding: spacing.md,
+    gap: spacing.sm
+  },
+  msgRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs
+  },
+  msgRowUser: {
+    justifyContent: 'flex-end'
+  },
+  msgRowCopilot: {
+    justifyContent: 'flex-start'
+  },
+  botIconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2
+  },
+  userIconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2
+  },
+  bubble: {
+    maxWidth: '82%',
+    borderRadius: spacing.radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8
+  },
+  copilotBubble: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderBottomLeftRadius: 3
+  },
+  userBubble: {
+    backgroundColor: colors.primaryDark,
+    borderBottomRightRadius: 3
+  },
+  bubbleText: {
+    fontSize: 11,
+    lineHeight: 16
+  },
+  copilotBubbleText: {
+    color: colors.text.bright
+  },
+  userBubbleText: {
+    color: '#FFF',
+    fontWeight: typography.weights.medium
+  },
+  bubbleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 3
+  },
+  msgTime: {
+    fontSize: 8.5,
+    color: colors.text.dimmed
+  },
+  provenanceTag: {
+    fontSize: 8.5,
+    color: colors.primaryBright,
+    fontWeight: typography.weights.bold
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs
+  },
+  loadingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  loadingText: {
+    fontSize: 10,
+    color: colors.text.muted,
+    fontStyle: 'italic'
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    color: colors.text.primary,
+    fontSize: 11
+  },
+  sendBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  sendBtnDisabled: {
+    backgroundColor: colors.card,
+    opacity: 0.5
   }
 });
+
