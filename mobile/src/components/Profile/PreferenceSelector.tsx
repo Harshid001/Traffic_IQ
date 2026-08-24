@@ -5,10 +5,10 @@ import {
   ShieldCheck,
   Zap,
   TrendingDown,
-  DollarSign,
+  Coins,
   Check,
-  RefreshCw,
-  AlertTriangle
+  Car,
+  Bike
 } from 'lucide-react-native';
 import { useSettingsStore, PreferenceProfile } from '../../store/settingsStore';
 import { useNavigationStore } from '../../store/navigationStore';
@@ -24,36 +24,36 @@ interface ProfileOption {
   icon: any;
 }
 
+const VEHICLES = [
+  { id: 'car', label: 'Car / Sedan', icon: Car },
+  { id: 'ev', label: 'Electric Vehicle (EV)', icon: Zap },
+  { id: 'bike', label: 'Two-Wheeler / Bike', icon: Bike }
+];
+
 const PROFILES: ProfileOption[] = [
   {
     id: 'BALANCED',
-    label: 'Balanced (Smart Multi-Objective)',
-    desc: 'Optimizes travel time, reliability, and congestion risk simultaneously.',
+    label: 'Smart Balanced (Recommended)',
+    desc: 'Optimizes travel time, arrival reliability, and smooth traffic flow simultaneously.',
     icon: ShieldCheck
   },
   {
-    id: 'MOST_RELIABLE',
-    label: 'Most Reliable Route',
-    desc: 'Prioritizes routes with lowest variance and buffer delay index.',
-    icon: ShieldCheck
+    id: 'FASTEST',
+    label: 'Fastest Travel Time',
+    desc: 'Prioritizes the lowest total duration regardless of congestion or tolls.',
+    icon: Zap
   },
   {
     id: 'LOWEST_TRAFFIC',
-    label: 'Lowest Congestion Flow',
-    desc: 'Avoids heavy bottlenecks and dense arterial intersections.',
+    label: 'Smooth Traffic & Low Congestion',
+    desc: 'Avoids stop-and-go junctions, bottlenecks, and dense city roads.',
     icon: TrendingDown
   },
   {
     id: 'AVOID_TOLLS',
-    label: 'Avoid Toll Highways',
-    desc: 'Penalizes toll plazas and expressway surcharge links.',
-    icon: DollarSign
-  },
-  {
-    id: 'FASTEST',
-    label: 'Pure Raw Fastest Speed',
-    desc: 'Minimizes expected duration regardless of congestion or tolls.',
-    icon: Zap
+    label: 'Avoid Highway Tolls',
+    desc: 'Chooses free alternate avenues and bypasses toll booths.',
+    icon: Coins
   }
 ];
 
@@ -66,8 +66,8 @@ const PreferenceSelectorBase: React.FC = () => {
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
   const routesError = useNavigationStore(s => s.routesError);
 
+  const [selectedVehicle, setSelectedVehicle] = useState('car');
   const [toast, setToast] = useState<{ kind: ToastKind; label: string } | null>(null);
-  /** The profile currently being applied, so its row can show a spinner. */
   const [pendingProfile, setPendingProfile] = useState<PreferenceProfile | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
@@ -95,13 +95,15 @@ const PreferenceSelectorBase: React.FC = () => {
       setPendingProfile(id);
       try {
         await fetchRoutes(selectedCorridor, id);
-        // `fetchRoutes` records failures in the store rather than throwing.
         if (useNavigationStore.getState().routesError) {
           setPreferenceProfile(previous);
-          showToast('error', 'Route recalculation failed. Preference reverted.');
+          showToast('error', `Failed to apply "${selected?.label ?? id}" profile.`);
         } else {
-          showToast('success', `Routes recalculated: ${selected?.label ?? id}`);
+          showToast('success', `Applied "${selected?.label ?? id}" routing profile.`);
         }
+      } catch {
+        setPreferenceProfile(previous);
+        showToast('error', `Failed to apply "${selected?.label ?? id}" profile.`);
       } finally {
         setPendingProfile(null);
       }
@@ -109,90 +111,102 @@ const PreferenceSelectorBase: React.FC = () => {
     [preferenceProfile, pendingProfile, setPreferenceProfile, fetchRoutes, selectedCorridor, showToast]
   );
 
-  const isBusy = pendingProfile !== null;
-
   return (
-    <Card style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Sliders size={14} color={colors.primary} />
-          <Text style={styles.title}>ROUTING OBJECTIVE PROFILE</Text>
+    <View style={styles.container}>
+      {/* Vehicle Type Selector */}
+      <Card style={styles.vehicleCard}>
+        <Text style={styles.sectionTitle}>VEHICLE TYPE</Text>
+        <View style={styles.vehicleRow}>
+          {VEHICLES.map(v => {
+            const isSelected = selectedVehicle === v.id;
+            const Icon = v.icon;
+            return (
+              <TouchableOpacity
+                key={v.id}
+                activeOpacity={0.75}
+                onPress={() => setSelectedVehicle(v.id)}
+                style={[styles.vehicleBtn, isSelected && styles.vehicleBtnSelected]}
+              >
+                <Icon size={18} color={isSelected ? colors.primaryBright : colors.text.muted} />
+                <Text style={[styles.vehicleBtnText, isSelected && styles.vehicleBtnTextSelected]}>
+                  {v.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        {/* `isRefetching` used to be tracked and never rendered. */}
-        {isBusy ? (
-          <View style={styles.busyRow}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.busyText}>Recalculating</Text>
+      </Card>
+
+      {/* Routing Profile Options */}
+      <Card style={styles.profileCard}>
+        <View style={styles.header}>
+          <View style={styles.iconCircle}>
+            <Sliders size={14} color={colors.primary} />
           </View>
-        ) : (
-          <Text style={styles.subText}>Scoring Weights</Text>
-        )}
-      </View>
+          <View>
+            <Text style={styles.title}>ROUTING OBJECTIVE</Text>
+            <Text style={styles.subTitle}>How the engine ranks candidate routes</Text>
+          </View>
+        </View>
 
-      <View style={styles.profileList}>
-        {PROFILES.map((p) => {
-          const isSelected = preferenceProfile === p.id;
-          const isPending = pendingProfile === p.id;
-          const Icon = p.icon;
+        <View style={styles.profileList}>
+          {PROFILES.map(profile => {
+            const isSelected = preferenceProfile === profile.id;
+            const isPending = pendingProfile === profile.id;
+            const Icon = profile.icon;
 
-          return (
-            <TouchableOpacity
-              key={p.id}
-              activeOpacity={0.7}
-              onPress={() => handleSelect(p.id)}
-              disabled={isBusy}
-              style={[
-                styles.profileItem,
-                isSelected && styles.profileItemSelected,
-                isBusy && !isPending && styles.profileItemDimmed
-              ]}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected, disabled: isBusy, busy: isPending }}
-              accessibilityLabel={`${p.label}. ${p.desc}`}
-            >
-              <View style={styles.profileItemLeft}>
-                <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
-                  <Icon size={14} color={isSelected ? colors.primary : colors.text.secondary} />
+            return (
+              <TouchableOpacity
+                key={profile.id}
+                activeOpacity={0.75}
+                onPress={() => handleSelect(profile.id)}
+                disabled={pendingProfile !== null}
+                style={[
+                  styles.profileItem,
+                  isSelected && styles.profileItemSelected,
+                  isPending && styles.profileItemPending
+                ]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected, busy: isPending }}
+              >
+                <View style={styles.profileLeft}>
+                  <View style={[styles.profileIcon, isSelected && styles.profileIconSelected]}>
+                    <Icon size={16} color={isSelected ? colors.primary : colors.text.secondary} />
+                  </View>
+                  <View style={styles.profileTextCol}>
+                    <Text style={[styles.profileLabel, isSelected && styles.profileLabelSelected]}>
+                      {profile.label}
+                    </Text>
+                    <Text style={styles.profileDesc}>{profile.desc}</Text>
+                  </View>
                 </View>
-                <View style={styles.profileTextCol}>
-                  <Text style={[styles.profileTitle, isSelected && styles.profileTitleSelected]}>
-                    {p.label}
-                  </Text>
-                  <Text style={styles.profileDesc}>{p.desc}</Text>
-                </View>
-              </View>
 
-              {isPending ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : isSelected ? (
-                <Check size={16} color={colors.primary} />
-              ) : null}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+                {isPending ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : isSelected ? (
+                  <View style={styles.checkPill}>
+                    <Check size={12} color={colors.text.onAccent} strokeWidth={3} />
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Card>
 
-      {/* Toast notification */}
+      {/* Toast Feedback */}
       {toast && (
         <Animated.View
           style={[
             styles.toast,
-            toast.kind === 'error' && styles.toastError,
+            toast.kind === 'error' ? styles.toastError : styles.toastSuccess,
             { opacity: toastOpacity }
           ]}
-          accessibilityLiveRegion="polite"
         >
-          {toast.kind === 'error' ? (
-            <AlertTriangle size={12} color={colors.danger} />
-          ) : (
-            <RefreshCw size={12} color={colors.primary} />
-          )}
-          <Text style={[styles.toastText, toast.kind === 'error' && styles.toastTextError]}>
-            {toast.label}
-          </Text>
+          <Text style={styles.toastText}>{toast.label}</Text>
         </Animated.View>
       )}
-    </Card>
+    </View>
   );
 };
 
@@ -200,125 +214,166 @@ export const PreferenceSelector = React.memo(PreferenceSelectorBase);
 
 const styles = StyleSheet.create({
   container: {
+    gap: spacing.md,
     marginBottom: spacing.lg
+  },
+  vehicleCard: {
+    padding: spacing.cardPadding,
+    borderRadius: spacing.radius.xl
+  },
+  sectionTitle: {
+    fontSize: 9,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.muted,
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    gap: spacing.xs
+  },
+  vehicleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  vehicleBtnSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint
+  },
+  vehicleBtnText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted
+  },
+  vehicleBtnTextSelected: {
+    color: colors.primaryBright
+  },
+  profileCard: {
+    padding: spacing.cardPadding,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    gap: spacing.md
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
-    flex: 1
+    marginBottom: spacing.md
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal
+    color: colors.text.bright,
+    letterSpacing: 0.5
   },
-  subText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted
-  },
-  busyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm
-  },
-  busyText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.primary
+  subTitle: {
+    fontSize: 10,
+    color: colors.text.muted,
+    marginTop: 1
   },
   profileList: {
-    gap: spacing.sm
+    gap: spacing.xs
   },
   profileItem: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   profileItemSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryFaint
   },
-  profileItemDimmed: {
-    opacity: 0.5
+  profileItemPending: {
+    opacity: 0.6
   },
-  profileItemLeft: {
+  profileLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     flex: 1
   },
-  iconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: spacing.radius.sm,
-    backgroundColor: colors.neutral,
+  profileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  iconBoxSelected: {
-    backgroundColor: colors.primarySoft
+  profileIconSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryBorder
   },
   profileTextCol: {
     flex: 1
   },
-  profileTitle: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+  profileLabel: {
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
-    color: colors.text.body
+    color: colors.text.primary
   },
-  profileTitleSelected: {
-    color: colors.primary
+  profileLabelSelected: {
+    color: colors.primaryBright
   },
   profileDesc: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted,
-    marginTop: 1
+    fontSize: 11,
+    color: colors.text.secondary,
+    marginTop: 2
+  },
+  checkPill: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   toast: {
-    flexDirection: 'row',
+    position: 'absolute',
+    bottom: -10,
+    left: spacing.cardPadding,
+    right: spacing.cardPadding,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    backgroundColor: colors.primaryFaint,
-    borderWidth: 1,
-    borderColor: colors.primaryBorderSoft,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md
+    justifyContent: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    zIndex: 100
+  },
+  toastSuccess: {
+    backgroundColor: colors.primaryDark
   },
   toastError: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.dangerBorder
+    backgroundColor: colors.danger
   },
   toastText: {
-    flex: 1,
     fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.semibold,
-    color: colors.primary
-  },
-  toastTextError: {
-    color: colors.dangerBright
+    fontWeight: typography.weights.bold,
+    color: '#FFF'
   }
 });

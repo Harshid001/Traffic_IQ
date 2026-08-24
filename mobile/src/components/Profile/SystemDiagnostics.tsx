@@ -1,49 +1,37 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Switch } from 'react-native';
-import { Activity, RefreshCw, CheckCircle2, XCircle, Radio, Bell, Clock, ShieldAlert } from 'lucide-react-native';
+import { Activity, RefreshCw, CheckCircle2, XCircle, Radio, Bell, Volume2, ShieldAlert, Sparkles, Server } from 'lucide-react-native';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNavigationStore } from '../../store/navigationStore';
-import { ErrorState } from '../Common/ErrorState';
-import { EmptyState } from '../Common/EmptyState';
 import { Card } from '../Common/Card';
 import { Badge } from '../Common/Badge';
-import { isInsecureTransport, API_BASE_URL } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 const HEALTH_REFRESH_MS = 30000;
 
-/** A service value is treated as unhealthy when it reads like a failure. */
-const isUnhealthy = (value: string): boolean =>
-  /offline|error|unavailable|failed|down|disconnected/i.test(value);
-
 const SystemDiagnosticsBase: React.FC = () => {
   const systemHealth = useSettingsStore(s => s.systemHealth);
   const refreshHealth = useSettingsStore(s => s.refreshHealth);
   const isLoadingHealth = useSettingsStore(s => s.isLoadingHealth);
-  const healthError = useSettingsStore(s => s.healthError);
   const trafficMode = useSettingsStore(s => s.trafficMode);
   const setTrafficMode = useSettingsStore(s => s.setTrafficMode);
   const backgroundAlertsEnabled = useSettingsStore(s => s.backgroundAlertsEnabled);
   const toggleBackgroundAlerts = useSettingsStore(s => s.toggleBackgroundAlerts);
   const soundEnabled = useSettingsStore(s => s.soundEnabled);
   const toggleSound = useSettingsStore(s => s.toggleSound);
-  const alertCooldownSeconds = useSettingsStore(s => s.alertCooldownSeconds);
-  const setAlertCooldownSeconds = useSettingsStore(s => s.setAlertCooldownSeconds);
 
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
-  const [, forceTick] = useState(0);
 
   const doRefresh = useCallback(async () => {
     await refreshHealth();
     setLastCheckedAt(Date.now());
   }, [refreshHealth]);
 
-  // Single 30s poll for the health endpoint.
   const doRefreshRef = useRef(doRefresh);
   doRefreshRef.current = doRefresh;
 
@@ -52,17 +40,6 @@ const SystemDiagnosticsBase: React.FC = () => {
     const interval = setInterval(() => doRefreshRef.current(), HEALTH_REFRESH_MS);
     return () => clearInterval(interval);
   }, []);
-
-  /**
-   * One stable 1s interval to re-render the relative timestamp.
-   * The previous version listed the counter in its own dependency array, which
-   * tore down and recreated the interval on every single tick.
-   */
-  useEffect(() => {
-    if (lastCheckedAt === null) return;
-    const interval = setInterval(() => forceTick(t => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [lastCheckedAt]);
 
   const handleTrafficModeToggle = useCallback(
     (mode: 'DEMO' | 'REAL') => {
@@ -73,200 +50,130 @@ const SystemDiagnosticsBase: React.FC = () => {
     [trafficMode, setTrafficMode, fetchRoutes, selectedCorridor]
   );
 
-  const cycleCooldown = useCallback(() => {
-    // 1 min -> 3 min -> 5 min -> 10 min -> back to 1 min
-    const steps = [60, 180, 300, 600];
-    const next = steps[(steps.indexOf(alertCooldownSeconds) + 1) % steps.length];
-    setAlertCooldownSeconds(next);
-  }, [alertCooldownSeconds, setAlertCooldownSeconds]);
-
   const services: Record<string, string> | null = systemHealth?.services ?? null;
-  const secondsAgo = lastCheckedAt === null ? null : Math.floor((Date.now() - lastCheckedAt) / 1000);
 
   return (
     <View style={styles.container}>
-      {/* Traffic Data Source Switcher */}
-      <Card>
+      {/* Audio & Alert Preferences */}
+      <Card style={styles.card}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Radio size={14} color={colors.primary} />
-            <Text style={styles.title}>TRAFFIC DATA SOURCE</Text>
+          <View style={styles.iconCircle}>
+            <Bell size={14} color={colors.primary} />
           </View>
-          <Badge variant="primary" size="sm">
-            {trafficMode}
-          </Badge>
+          <View>
+            <Text style={styles.title}>DRIVER ALERTS & AUDIO</Text>
+            <Text style={styles.subTitle}>Voice guidance, hazard alarms & background alerts</Text>
+          </View>
+        </View>
+
+        <View style={styles.switchGroup}>
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextCol}>
+              <Text style={styles.switchTitle}>Voice Navigation Guidance</Text>
+              <Text style={styles.switchSub}>Turn-by-turn spoken directions and street names</Text>
+            </View>
+            <Switch
+              value={soundEnabled}
+              onValueChange={toggleSound}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#FFF"
+            />
+          </View>
+
+          <View style={styles.switchDivider} />
+
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextCol}>
+              <Text style={styles.switchTitle}>Proactive Delay & Reroute Alerts</Text>
+              <Text style={styles.switchSub}>Notify when a faster alternate route saves 5+ mins</Text>
+            </View>
+            <Switch
+              value={backgroundAlertsEnabled}
+              onValueChange={toggleBackgroundAlerts}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#FFF"
+            />
+          </View>
+        </View>
+      </Card>
+
+      {/* Traffic Data Stream Source */}
+      <Card style={styles.card}>
+        <View style={styles.header}>
+          <View style={styles.iconCircle}>
+            <Radio size={14} color={colors.info} />
+          </View>
+          <View>
+            <Text style={styles.title}>LIVE TRAFFIC SOURCE</Text>
+            <Text style={styles.subTitle}>TomTom live highway telemetry vs offline simulation</Text>
+          </View>
         </View>
 
         <View style={styles.modeGrid}>
-          {(['DEMO', 'REAL'] as const).map((mode) => {
-            const isActive = trafficMode === mode;
-            return (
-              <TouchableOpacity
-                key={mode}
-                activeOpacity={0.7}
-                onPress={() => handleTrafficModeToggle(mode)}
-                style={[styles.modeButton, isActive && styles.modeButtonSelected]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isActive }}
-                accessibilityLabel={
-                  mode === 'DEMO'
-                    ? 'Demo simulation, deterministic evaluation'
-                    : 'Live API from TomTom, real-world speed flow'
-                }
-              >
-                <Text style={[styles.modeButtonTitle, isActive && styles.modeButtonTitleSelected]}>
-                  {mode === 'DEMO' ? 'DEMO Simulation' : 'Live API (TomTom)'}
-                </Text>
-                <Text style={styles.modeButtonSub}>
-                  {mode === 'DEMO' ? 'Deterministic evaluation' : 'Real-world speed flow'}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => handleTrafficModeToggle('REAL')}
+            style={[styles.modeCard, trafficMode === 'REAL' && styles.modeCardActive]}
+          >
+            <View style={styles.modeHeader}>
+              <View style={[styles.modeDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.modeTitle, trafficMode === 'REAL' && styles.modeTitleActive]}>
+                TomTom Live Stream
+              </Text>
+            </View>
+            <Text style={styles.modeDesc}>Real-time GPS vehicle speed and live bottleneck reports</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => handleTrafficModeToggle('DEMO')}
+            style={[styles.modeCard, trafficMode === 'DEMO' && styles.modeCardActive]}
+          >
+            <View style={styles.modeHeader}>
+              <View style={[styles.modeDot, { backgroundColor: colors.fastest }]} />
+              <Text style={[styles.modeTitle, trafficMode === 'DEMO' && styles.modeTitleActive]}>
+                Simulated Demo Flow
+              </Text>
+            </View>
+            <Text style={styles.modeDesc}>Curated congestion scenarios for testing and offline drives</Text>
+          </TouchableOpacity>
         </View>
       </Card>
 
-      {/* Notifications & Sound Toggles */}
-      <Card>
+      {/* Engine Status Summary */}
+      <Card style={styles.card}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Bell size={14} color={colors.fastest} />
-            <Text style={styles.title}>DRIVER ALERTS & AUDIO</Text>
+          <View style={styles.iconCircle}>
+            <Server size={14} color={colors.primary} />
           </View>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>NAVIGATION ENGINE HEALTH</Text>
+            <Text style={styles.subTitle}>FastAPI microservices & ML models</Text>
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={doRefresh}
+            disabled={isLoadingHealth}
+            style={styles.refreshBtn}
+          >
+            <RefreshCw size={12} color={colors.text.secondary} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.switchRow}>
-          <View style={styles.switchTextCol}>
-            <Text style={styles.switchTitle}>Proactive Road Alerts</Text>
-            <Text style={styles.switchSub}>
-              Surface warnings for bottlenecks ahead while navigating
-            </Text>
-          </View>
-          <Switch
-            value={backgroundAlertsEnabled}
-            onValueChange={toggleBackgroundAlerts}
-            trackColor={{ false: colors.borderStrong, true: colors.primary }}
-            thumbColor={colors.text.bright}
-            accessibilityLabel="Proactive road alerts"
-          />
-        </View>
-
-        <View style={[styles.switchRow, styles.switchRowBorder]}>
-          <View style={styles.switchTextCol}>
-            <Text style={styles.switchTitle}>Cockpit Chime & Haptics</Text>
-            <Text style={styles.switchSub}>
-              Tones on web, vibration on device, for maneuvers and traffic spikes
-            </Text>
-          </View>
-          <Switch
-            value={soundEnabled}
-            onValueChange={toggleSound}
-            trackColor={{ false: colors.borderStrong, true: colors.primary }}
-            thumbColor={colors.text.bright}
-            accessibilityLabel="Cockpit chime and haptics"
-          />
-        </View>
-
-        {/* Cooldown is now read by the alert pipeline, so expose it. */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={cycleCooldown}
-          style={[styles.switchRow, styles.switchRowBorder]}
-          accessibilityRole="button"
-          accessibilityLabel={`Alert cooldown, currently ${alertCooldownSeconds / 60} minutes. Tap to change.`}
-        >
-          <View style={styles.switchTextCol}>
-            <Text style={styles.switchTitle}>Alert Cooldown</Text>
-            <Text style={styles.switchSub}>Minimum gap before the next alert can appear</Text>
-          </View>
-          <View style={styles.stepperValue}>
-            <Text style={styles.stepperValueText}>{alertCooldownSeconds / 60} min</Text>
-          </View>
-        </TouchableOpacity>
-      </Card>
-
-      {/* Backend Microservice Status */}
-      <Card>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Activity size={14} color={colors.primary} />
-            <Text style={styles.title}>BACKEND MICROSERVICES STATUS</Text>
-          </View>
-          <View style={styles.refreshRow}>
-            {secondsAgo !== null && (
-              <View style={styles.timestampRow}>
-                <Clock size={11} color={colors.text.muted} />
-                <Text style={styles.timestampText}>
-                  {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
-                </Text>
-              </View>
-            )}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={doRefresh}
-              disabled={isLoadingHealth}
-              style={[styles.refreshBtn, isLoadingHealth && styles.refreshBtnDisabled]}
-              hitSlop={spacing.hitSlop}
-              accessibilityRole="button"
-              accessibilityLabel="Refresh backend service status"
-              accessibilityState={{ disabled: isLoadingHealth, busy: isLoadingHealth }}
-            >
-              <RefreshCw
-                size={14}
-                color={isLoadingHealth ? colors.primary : colors.text.secondary}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {healthError ? (
-          <ErrorState
-            title="Health check failed"
-            message={healthError}
-            onRetry={doRefresh}
-          />
-        ) : !services ? (
-          <EmptyState
-            title="No status reported"
-            message="The server did not return a service list."
-            actionLabel="Check again"
-            onAction={doRefresh}
-          />
-        ) : (
-          <View style={styles.serviceList}>
-            {Object.entries(services).map(([key, val]) => {
-              const value = String(val);
-              const unhealthy = isUnhealthy(value);
+        {services && (
+          <View style={styles.serviceGrid}>
+            {Object.entries(services).map(([name, status]) => {
+              const isOk = /ok|healthy|online|running|active/i.test(status);
               return (
-                <Card variant="nested" key={key} style={styles.serviceItem}>
-                  <Text style={styles.serviceName}>{key.replace(/_/g, ' ')}</Text>
-                  <View style={styles.serviceValRow}>
-                    {unhealthy ? (
-                      <XCircle size={12} color={colors.danger} />
-                    ) : (
-                      <CheckCircle2 size={12} color={colors.primary} />
-                    )}
-                    <Text
-                      style={[styles.serviceVal, unhealthy && styles.serviceValBad]}
-                      numberOfLines={1}
-                    >
-                      {value}
-                    </Text>
-                  </View>
-                </Card>
+                <View key={name} style={styles.serviceCell}>
+                  <View style={[styles.serviceStatusDot, { backgroundColor: isOk ? colors.primary : colors.danger }]} />
+                  <Text style={styles.serviceName}>{name.toUpperCase()}</Text>
+                  <Text style={[styles.serviceStatus, { color: isOk ? colors.primary : colors.danger }]}>
+                    {status}
+                  </Text>
+                </View>
               );
             })}
-          </View>
-        )}
-
-        {/* Surface cleartext transport rather than hiding it. */}
-        {isInsecureTransport && (
-          <View style={styles.warningRow}>
-            <ShieldAlert size={12} color={colors.fastest} />
-            <Text style={styles.warningText}>
-              Connected over unencrypted HTTP ({API_BASE_URL}). Set
-              EXPO_PUBLIC_API_BASE_URL to an HTTPS origin for release builds.
-            </Text>
           </View>
         )}
       </Card>
@@ -278,177 +185,150 @@ export const SystemDiagnostics = React.memo(SystemDiagnosticsBase);
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.lg,
-    marginBottom: spacing.lg
+    gap: spacing.md
+  },
+  card: {
+    padding: spacing.cardPadding,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    gap: spacing.md
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
+    marginBottom: spacing.md
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerText: {
     flex: 1
   },
   title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal,
-    flexShrink: 1
+    color: colors.text.bright,
+    letterSpacing: 0.5
   },
-  modeGrid: {
-    flexDirection: 'row',
-    gap: spacing.md
-  },
-  modeButton: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
-    justifyContent: 'center'
-  },
-  modeButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFaint
-  },
-  modeButtonTitle: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
-    color: colors.text.body
-  },
-  modeButtonTitleSelected: {
-    color: colors.primary
-  },
-  modeButtonSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  subTitle: {
+    fontSize: 10,
     color: colors.text.muted,
-    marginTop: 2
+    marginTop: 1
+  },
+  refreshBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  switchGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    minHeight: spacing.touchTargetMin
-  },
-  switchRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-    marginTop: spacing.sm
-  },
-  switchTextCol: {
-    flex: 1,
-    paddingRight: spacing.lg
-  },
-  switchTitle: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
-    color: colors.text.body
-  },
-  switchSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted,
-    marginTop: 1
-  },
-  stepperValue: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm
-  },
-  stepperValueText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary
-  },
-  refreshRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm
-  },
-  timestampRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3
-  },
-  timestampText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted
-  },
-  refreshBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: spacing.radius.sm,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  refreshBtnDisabled: {
-    opacity: 0.5
-  },
-  serviceList: {
-    gap: spacing.sm
-  },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: spacing.md
   },
-  serviceName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    textTransform: 'capitalize',
-    flexShrink: 1
+  switchTextCol: {
+    flex: 1
   },
-  serviceValRow: {
+  switchTitle: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary
+  },
+  switchSub: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    marginTop: 2
+  },
+  switchDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md
+  },
+  modeGrid: {
+    gap: spacing.xs
+  },
+  modeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  modeCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint
+  },
+  modeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    flexShrink: 1
+    marginBottom: 2
   },
-  serviceVal: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  modeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5
+  },
+  modeTitle: {
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
-    color: colors.primary,
-    flexShrink: 1
+    color: colors.text.secondary
   },
-  serviceValBad: {
-    color: colors.danger
+  modeTitleActive: {
+    color: colors.primaryBright
   },
-  warningRow: {
+  modeDesc: {
+    fontSize: 11,
+    color: colors.text.muted,
+    marginTop: 2
+  },
+  serviceGrid: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
+    flexWrap: 'wrap',
+    gap: spacing.xs
   },
-  warningText: {
+  serviceCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: '48%',
     flex: 1,
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.fastest
+    gap: 5
+  },
+  serviceStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3
+  },
+  serviceName: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary,
+    flex: 1
+  },
+  serviceStatus: {
+    fontSize: 9,
+    fontWeight: typography.weights.extrabold
   }
 });

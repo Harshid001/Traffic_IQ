@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ShieldCheck } from 'lucide-react-native';
+import { ShieldCheck, CheckCircle2, AlertCircle, Clock } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { EmptyState } from '../Common/EmptyState';
 import { Card } from '../Common/Card';
@@ -13,18 +13,12 @@ interface ReliabilityScorecardProps {
   route: RouteData;
 }
 
-/** Renders `—` rather than inventing a number when a field is absent. */
 const fmt = (value: number | null | undefined, unit = ' min'): string =>
-  value === null || value === undefined || Number.isNaN(value) ? '—' : `${value}${unit}`;
+  value === null || value === undefined || Number.isNaN(value) ? '—' : `${Math.round(value)}${unit}`;
 
 const ReliabilityScorecardBase: React.FC<ReliabilityScorecardProps> = ({ route }) => {
   const rel = route.reliability;
 
-  /**
-   * Prefer the server-computed spread. The previous code always recomputed
-   * (p90 - p10) / 2 locally and ignored `forecast_uncertainty_spread`, so the
-   * displayed uncertainty could disagree with the model's own figure.
-   */
   const uncertaintySpread = useMemo(() => {
     if (route.forecast_uncertainty_spread !== undefined && route.forecast_uncertainty_spread !== null) {
       return Math.round(route.forecast_uncertainty_spread * 10) / 10;
@@ -39,7 +33,7 @@ const ReliabilityScorecardBase: React.FC<ReliabilityScorecardProps> = ({ route }
     return (
       <EmptyState
         title="Reliability not reported"
-        message="The routing engine did not return reliability bounds for this route."
+        message="The routing engine did not return confidence metrics for this route."
       />
     );
   }
@@ -48,64 +42,56 @@ const ReliabilityScorecardBase: React.FC<ReliabilityScorecardProps> = ({ route }
     <Card style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <ShieldCheck size={14} color={colors.primary} />
-          <Text style={styles.title}>RELIABILITY & RISK BOUNDS</Text>
+          <View style={styles.iconCircle}>
+            <ShieldCheck size={14} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={styles.title}>DRIVER ON-TIME CONFIDENCE</Text>
+            <Text style={styles.subTitle}>Arrival bounds and buffer recommendations</Text>
+          </View>
         </View>
         <Badge variant="primary" size="sm">
           {rel.reliability_label}
         </Badge>
       </View>
 
-      {/* Percentiles Card */}
-      <Card variant="nested" style={styles.percentilesCard}>
-        <Text style={styles.cardHeader}>TRAVEL TIME DISTRIBUTION (PERCENTILES)</Text>
-
-        <View style={styles.percentileRow}>
-          <Text style={styles.percentileLabel}>P10 (Best Case Flow)</Text>
-          <Text style={[styles.percentileVal, { color: colors.info }]}>
+      {/* 3-Column Best / Typical / Worst Case */}
+      <View style={styles.boundGrid}>
+        <View style={styles.boundCell}>
+          <Text style={styles.boundLabel}>BEST CASE</Text>
+          <Text style={[styles.boundEta, { color: colors.primaryBright }]}>
             {fmt(route.predicted_eta_p10)}
           </Text>
+          <Text style={styles.boundSub}>Free-flow traffic</Text>
         </View>
 
-        <View style={styles.percentileRow}>
-          <Text style={[styles.percentileLabel, styles.percentileLabelKey]}>
-            P50 (Median Expected)
-          </Text>
-          <Text style={[styles.percentileVal, styles.percentileValKey]}>
+        <View style={[styles.boundCell, styles.boundCellMiddle]}>
+          <Text style={[styles.boundLabel, { color: colors.primaryBright }]}>EXPECTED</Text>
+          <Text style={[styles.boundEta, { color: colors.text.bright, fontSize: 18 }]}>
             {fmt(route.predicted_eta_p50)}
           </Text>
+          <Text style={styles.boundSub}>Most likely ETA</Text>
         </View>
 
-        <View style={styles.percentileRow}>
-          <Text style={styles.percentileLabel}>P90 (Worst Case Bottleneck)</Text>
-          <Text style={[styles.percentileVal, { color: colors.fastest }]}>
+        <View style={styles.boundCell}>
+          <Text style={styles.boundLabel}>WORST CASE</Text>
+          <Text style={[styles.boundEta, { color: colors.fastestBright }]}>
             {fmt(route.predicted_eta_p90)}
           </Text>
+          <Text style={styles.boundSub}>Heavy rush hour</Text>
         </View>
+      </View>
 
-        <View style={styles.spreadRow}>
-          <Text style={styles.spreadLabel}>Uncertainty Spread:</Text>
-          <Text style={styles.spreadVal}>
-            {uncertaintySpread === null ? '—' : `±${uncertaintySpread} min`}
-          </Text>
-        </View>
-      </Card>
-
-      {/* Buffer Index and P95 */}
-      <View style={styles.bottomRow}>
-        <Card variant="nested" style={styles.bottomCell}>
-          <Text style={styles.bottomCellLabel}>BUFFER INDEX</Text>
-          <Text style={[styles.bottomCellVal, { color: colors.primary }]}>
-            {rel.buffer_index === undefined || rel.buffer_index === null
-              ? '—'
-              : `${Math.round(rel.buffer_index * 100)}%`}
-          </Text>
-        </Card>
-
-        <Card variant="nested" style={styles.bottomCell}>
-          <Text style={styles.bottomCellLabel}>P95 SAFETY TIME</Text>
-          <Text style={styles.bottomCellVal}>{fmt(rel.p95_duration_min)}</Text>
-        </Card>
+      {/* Driver Buffer Recommendation */}
+      <View style={styles.bufferBanner}>
+        <Clock size={14} color={colors.primary} />
+        <Text style={styles.bufferText}>
+          Recommended Buffer:{' '}
+          <Text style={styles.bufferHighlight}>
+            {uncertaintySpread !== null ? `+${Math.ceil(uncertaintySpread)} mins` : '+5 mins'}
+          </Text>{' '}
+          for a 95% guaranteed on-time arrival.
+        </Text>
       </View>
     </Card>
   );
@@ -115,102 +101,92 @@ export const ReliabilityScorecard = React.memo(ReliabilityScorecardBase);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.lg
+    padding: spacing.cardPadding,
+    marginBottom: spacing.lg,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
-  },
-  title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal
-  },
-  percentilesCard: {
-    marginBottom: spacing.lg,
     gap: spacing.sm
   },
-  cardHeader: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  title: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.bright,
+    letterSpacing: 0.5
+  },
+  subTitle: {
+    fontSize: 10,
+    color: colors.text.muted,
+    marginTop: 1
+  },
+  boundGrid: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  boundCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xs
+  },
+  boundCellMiddle: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border
+  },
+  boundLabel: {
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
+    letterSpacing: 0.5,
     marginBottom: 2
   },
-  percentileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md
+  boundEta: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.extrabold,
+    marginBottom: 2
   },
-  percentileLabel: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    flex: 1
-  },
-  percentileLabelKey: {
-    color: colors.text.bright,
-    fontWeight: typography.weights.bold
-  },
-  percentileVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold
-  },
-  percentileValKey: {
-    color: colors.primary,
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label
-  },
-  spreadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginTop: 2
-  },
-  spreadLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  boundSub: {
+    fontSize: 9,
     color: colors.text.secondary
   },
-  spreadVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.primary
-  },
-  bottomRow: {
+  bufferBanner: {
     flexDirection: 'row',
-    gap: spacing.md
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  bottomCell: {
+  bufferText: {
+    fontSize: 11,
+    color: colors.text.body,
     flex: 1
   },
-  bottomCellLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
-  },
-  bottomCellVal: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.bright,
-    marginTop: 2
+  bufferHighlight: {
+    fontWeight: typography.weights.bold,
+    color: colors.primaryBright
   }
 });

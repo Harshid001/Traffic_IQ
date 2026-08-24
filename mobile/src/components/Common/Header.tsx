@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable } from 'react-native';
-import { Navigation, MapPin, ChevronDown, Check, Bell, FlaskConical } from 'lucide-react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable, TextInput } from 'react-native';
+import { Navigation, MapPin, ChevronDown, Check, Bell, Sparkles, Search, Compass, Radio } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { CORRIDORS, getCorridor } from '../../constants/corridors';
@@ -17,28 +17,38 @@ const HeaderBase: React.FC = () => {
   const trafficMode = useSettingsStore(s => s.trafficMode);
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
   const { dialogMaxWidth, isNarrow } = useLayout();
 
   const currentCorridor = getCorridor(selectedCorridor);
-  const isDemo = trafficMode === 'DEMO' || !useNavigationStore.getState().routingData || useNavigationStore.getState().routingData?.traffic_provenance === 'DEMO';
+  const isLive = trafficMode === 'REAL' && useNavigationStore.getState().routingData?.traffic_provenance === 'TOMTOM';
+
+  const filteredCorridors = useMemo(() => {
+    if (!searchFilter.trim()) return CORRIDORS;
+    const q = searchFilter.toLowerCase();
+    return CORRIDORS.filter(
+      c => c.name.toLowerCase().includes(q) || c.city.toLowerCase().includes(q) || c.tag.toLowerCase().includes(q)
+    );
+  }, [searchFilter]);
 
   const handleSelect = useCallback(
     (id: string) => {
       setSelectedCorridor(id);
       setModalVisible(false);
+      setSearchFilter('');
     },
     [setSelectedCorridor]
   );
 
   return (
     <View style={styles.header}>
-      {/* Brand & Unified Status Beacon */}
+      {/* Brand & Live Status Indicator */}
       <View style={styles.brandRow}>
         <View style={styles.logoBadge}>
           <Navigation
             size={16}
             color={colors.text.onAccent}
-            strokeWidth={2.5}
+            strokeWidth={2.6}
             style={{ transform: [{ rotate: '45deg' }] }}
           />
         </View>
@@ -47,108 +57,149 @@ const HeaderBase: React.FC = () => {
             <Text style={styles.brandTitle}>
               Traffic<Text style={styles.brandHighlight}>IQ</Text>
             </Text>
-            {/* Single Source of Truth Badge */}
-            {isDemo ? (
-              <View style={styles.demoPill} accessibilityLabel="Demo Simulation mode active">
-                <FlaskConical size={10} color={colors.fastest} />
-                <Text style={styles.demoText}>DEMO · SIMULATED</Text>
+            {/* Live / Smart Status Pill */}
+            {isLive ? (
+              <View style={styles.livePill} accessibilityLabel="Live TomTom traffic stream active">
+                <View style={styles.livePulseDot} />
+                <Text style={styles.liveText}>LIVE</Text>
               </View>
             ) : (
-              <View style={styles.livePill} accessibilityLabel="Live TomTom traffic stream active">
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>LIVE · STREAM</Text>
+              <View style={styles.smartPill} accessibilityLabel="Smart Copilot navigation active">
+                <Sparkles size={10} color={colors.primary} />
+                <Text style={styles.smartText}>COPILOT</Text>
               </View>
             )}
           </View>
-          <Text style={styles.brandSub}>Chronos-2 Engine</Text>
+          <Text style={styles.brandSub}>Smart Driver Navigation</Text>
         </View>
       </View>
 
-      {/* Corridor Selector Pill */}
+      {/* Interactive Destination / Corridor Selector */}
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         onPress={() => setModalVisible(true)}
         style={styles.corridorButton}
         hitSlop={spacing.hitSlop}
         accessibilityRole="button"
-        accessibilityLabel={`Navigation corridor: ${currentCorridor.name}. Tap to change.`}
-        accessibilityHint="Opens the corridor picker"
+        accessibilityLabel={`Navigation corridor: ${currentCorridor.name}. Tap to change destination.`}
+        accessibilityHint="Opens destination corridor picker"
       >
-        <MapPin size={12} color={colors.primary} />
-        <Text style={styles.corridorButtonText} numberOfLines={1}>
-          {isNarrow ? currentCorridor.shortLabel : currentCorridor.name}
-        </Text>
-        <ChevronDown size={12} color={colors.text.secondary} />
+        <View style={styles.corridorIconWrapper}>
+          <MapPin size={13} color={colors.primary} />
+        </View>
+        <View style={styles.corridorTextCol}>
+          <Text style={styles.corridorEyebrow}>DESTINATION</Text>
+          <Text style={styles.corridorButtonText} numberOfLines={1}>
+            {isNarrow ? currentCorridor.shortLabel : currentCorridor.name}
+          </Text>
+        </View>
+        <ChevronDown size={14} color={colors.text.secondary} />
       </TouchableOpacity>
 
-      {/* Background Alert Simulation Bell */}
+      {/* Safety Alert Notification Center Button */}
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         onPress={() => setShowLockScreenModal(true)}
-        style={styles.bellButton}
+        style={[styles.bellButton, activeAlert ? styles.bellButtonActive : null]}
         hitSlop={spacing.hitSlop}
         accessibilityRole="button"
         accessibilityLabel={
-          activeAlert
-            ? 'Show lock screen alert preview. One alert is active.'
-            : 'Show lock screen alert preview'
+          activeAlert ? 'Safety alert active. Tap to view lockscreen preview.' : 'Safety alerts center'
         }
       >
-        <Bell size={16} color={colors.text.primary} />
+        <Bell size={17} color={activeAlert ? colors.warningBright : colors.text.primary} />
         {activeAlert && <View style={styles.alertDot} />}
       </TouchableOpacity>
 
-      {/* Corridor Picker Modal */}
+      {/* Destination & Corridor Picker Modal */}
       <Modal
         visible={modalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setSearchFilter('');
+        }}
       >
-        {/* Backdrop dismiss; the inner Pressable stops the tap from bubbling. */}
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setModalVisible(false)}
+          onPress={() => {
+            setModalVisible(false);
+            setSearchFilter('');
+          }}
           accessibilityRole="button"
-          accessibilityLabel="Close corridor picker"
+          accessibilityLabel="Close destination picker"
         >
-          <Pressable accessible={false} style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
+          <Pressable
+            accessible={false}
+            style={[styles.modalContent, { maxWidth: dialogMaxWidth }]}
+            onPress={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalHeader}>SELECT NAVIGATION CORRIDOR</Text>
-              <Text style={styles.modalSubHeader}>Curated Benchmark Presets</Text>
+              <View>
+                <Text style={styles.modalHeader}>WHERE ARE YOU HEADED?</Text>
+                <Text style={styles.modalSubHeader}>Choose a route corridor to navigate</Text>
+              </View>
+              <View style={styles.modalHeaderIcon}>
+                <Compass size={18} color={colors.primary} />
+              </View>
             </View>
-            {CORRIDORS.map((corridor) => {
-              const isSelected = corridor.id === selectedCorridor;
-              return (
-                <TouchableOpacity
-                  key={corridor.id}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelect(corridor.id)}
-                  style={[styles.corridorItem, isSelected && styles.corridorItemSelected]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: isSelected }}
-                  accessibilityLabel={`${corridor.name}, ${corridor.city}, ${corridor.tag}`}
-                >
-                  <View style={styles.corridorItemText}>
-                    <View style={styles.corridorItemTop}>
-                      <Text
-                        style={[
-                          styles.corridorItemTitle,
-                          isSelected && styles.corridorItemTitleSelected
-                        ]}
-                      >
-                        {corridor.name}
-                      </Text>
-                      <View style={styles.corridorTag}>
-                        <Text style={styles.corridorTagText}>{corridor.tag}</Text>
+
+            {/* Quick Search Bar */}
+            <View style={styles.modalSearchBox}>
+              <Search size={15} color={colors.text.muted} />
+              <TextInput
+                value={searchFilter}
+                onChangeText={setSearchFilter}
+                placeholder="Search city, expressway, or route..."
+                placeholderTextColor={colors.text.dimmed}
+                style={styles.modalSearchInput}
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Corridors List */}
+            <View style={styles.modalList}>
+              {filteredCorridors.map(corridor => {
+                const isSelected = corridor.id === selectedCorridor;
+                return (
+                  <TouchableOpacity
+                    key={corridor.id}
+                    activeOpacity={0.7}
+                    onPress={() => handleSelect(corridor.id)}
+                    style={[styles.corridorItem, isSelected && styles.corridorItemSelected]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                    accessibilityLabel={`${corridor.name}, ${corridor.city}, ${corridor.tag}`}
+                  >
+                    <View style={styles.corridorItemIconCol}>
+                      <View style={[styles.corridorItemIcon, isSelected && styles.corridorItemIconSelected]}>
+                        <MapPin size={15} color={isSelected ? colors.primary : colors.text.secondary} />
                       </View>
                     </View>
-                    <Text style={styles.corridorItemCity}>{corridor.city}</Text>
-                  </View>
-                  {isSelected && <Check size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
+                    <View style={styles.corridorItemText}>
+                      <View style={styles.corridorItemTop}>
+                        <Text style={[styles.corridorItemTitle, isSelected && styles.corridorItemTitleSelected]}>
+                          {corridor.name}
+                        </Text>
+                        <View style={[styles.corridorTag, isSelected && styles.corridorTagSelected]}>
+                          <Text style={[styles.corridorTagText, isSelected && styles.corridorTagTextSelected]}>
+                            {corridor.tag}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.corridorItemCity}>{corridor.city} • High-Traffic Corridor</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.checkCircle}>
+                        <Check size={14} color={colors.text.onAccent} strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -160,41 +211,50 @@ export const Header = React.memo(HeaderBase);
 
 const styles = StyleSheet.create({
   header: {
-    height: 60,
-    backgroundColor: colors.background,
+    height: 64,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    zIndex: 40
+    paddingHorizontal: spacing.cardPadding,
+    zIndex: 40,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center'
   },
   logoBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: spacing.radius.sm,
+    width: 34,
+    height: 34,
+    borderRadius: spacing.radius.md,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md
+    marginRight: spacing.md,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6
   },
   brandTextCol: {
     justifyContent: 'center'
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: 4
   },
   brandTitle: {
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright,
-    letterSpacing: typography.tracking.normal
+    letterSpacing: typography.tracking.tight
   },
   brandHighlight: {
     color: colors.primary
@@ -206,77 +266,98 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primaryBorder,
     borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 6,
     paddingVertical: 1,
-    marginLeft: spacing.sm
+    gap: 4
   },
-  liveDot: {
+  livePulseDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.primary,
-    marginRight: 3
+    backgroundColor: colors.primary
   },
   liveText: {
-    fontSize: typography.sizes.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.primaryBright
+    color: colors.primaryBright,
+    letterSpacing: 0.5
   },
-  brandSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted,
-    fontWeight: typography.weights.medium
-  },
-  demoPill: {
+  smartPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.fastestFaint,
+    backgroundColor: colors.primaryFaint,
     borderWidth: 1,
-    borderColor: colors.fastestBorder,
+    borderColor: colors.primaryBorderSoft,
     borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 6,
     paddingVertical: 1,
-    marginLeft: spacing.xs,
     gap: 3
   },
-  demoText: {
-    fontSize: typography.sizes.micro,
+  smartText: {
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.fastest
+    color: colors.primary
+  },
+  brandSub: {
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.text.muted,
+    fontWeight: typography.weights.medium
   },
   corridorButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: spacing.radius.xl,
-    paddingHorizontal: spacing.lg,
-    minHeight: 36,
-    // Shrinks with the viewport instead of a fixed 155px cap.
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    minHeight: 40,
     flexShrink: 1,
     flex: 1,
-    marginHorizontal: spacing.md
+    marginHorizontal: spacing.md,
+    gap: spacing.sm
+  },
+  corridorIconWrapper: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  corridorTextCol: {
+    flex: 1,
+    justifyContent: 'center'
+  },
+  corridorEyebrow: {
+    fontSize: 9,
+    lineHeight: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted,
+    letterSpacing: 0.5
   },
   corridorButtonText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.strong,
-    fontWeight: typography.weights.semibold,
-    marginHorizontal: spacing.xs,
-    flex: 1
+    fontSize: typography.sizes.caption,
+    lineHeight: 15,
+    color: colors.text.bright,
+    fontWeight: typography.weights.semibold
   },
   bellButton: {
-    width: 38,
-    height: 38,
-    borderRadius: spacing.radius.md,
-    backgroundColor: colors.surface,
+    width: 40,
+    height: 40,
+    borderRadius: spacing.radius.lg,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
+  },
+  bellButtonActive: {
+    borderColor: colors.warningBorder,
+    backgroundColor: colors.warningSoft
   },
   alertDot: {
     width: 8,
@@ -284,8 +365,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.danger,
     position: 'absolute',
-    top: 6,
-    right: 6
+    top: 7,
+    right: 7,
+    borderWidth: 1.5,
+    borderColor: colors.surface
   },
   modalOverlay: {
     flex: 1,
@@ -297,47 +380,94 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: spacing.radius.xl,
+    borderRadius: spacing.radius.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.cardPadding
+    borderColor: colors.borderStrong,
+    padding: spacing.cardPaddingLg,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20
   },
   modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.lg
   },
   modalHeader: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: typography.sizes.label,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted,
-    letterSpacing: typography.tracking.wide
+    color: colors.text.bright,
+    letterSpacing: typography.tracking.normal
   },
   modalSubHeader: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.primary,
-    fontWeight: typography.weights.semibold,
+    fontSize: typography.sizes.caption,
+    color: colors.text.secondary,
     marginTop: 2
+  },
+  modalHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.lg,
+    paddingHorizontal: spacing.md,
+    height: 42,
+    marginBottom: spacing.lg,
+    gap: spacing.sm
+  },
+  modalSearchInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.sizes.body
+  },
+  modalList: {
+    gap: spacing.sm
   },
   corridorItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
-    borderRadius: spacing.radius.md,
+    padding: spacing.md,
+    minHeight: spacing.touchTargetComfortable,
+    borderRadius: spacing.radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.md,
-    backgroundColor: colors.card
+    backgroundColor: colors.card,
+    gap: spacing.md
   },
   corridorItemSelected: {
-    borderColor: colors.primaryBorder,
+    borderColor: colors.primary,
     backgroundColor: colors.primaryFaint
   },
+  corridorItemIconCol: {
+    justifyContent: 'center'
+  },
+  corridorItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  corridorItemIconSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryBorder
+  },
   corridorItemText: {
-    flex: 1,
-    paddingRight: spacing.md
+    flex: 1
   },
   corridorItemTop: {
     flexDirection: 'row',
@@ -346,33 +476,42 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   corridorItemTitle: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
     flex: 1
   },
-  corridorTag: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryBorderSoft,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 1
-  },
-  corridorTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.primary
-  },
   corridorItemTitleSelected: {
     color: colors.primary
   },
+  corridorTag: {
+    backgroundColor: colors.neutral,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  corridorTagSelected: {
+    backgroundColor: colors.primarySoft
+  },
+  corridorTagText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
+  },
+  corridorTagTextSelected: {
+    color: colors.primary
+  },
   corridorItemCity: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.caption,
+    color: colors.text.muted,
     marginTop: 2
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center'
   }
 });

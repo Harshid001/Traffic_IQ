@@ -14,9 +14,7 @@ TrafficIQ is an enterprise-grade predictive traffic intelligence and turn-by-tur
   - *Layer 2 (Fact & Trend Consistency):* Verifies congestion direction (Clearing vs Worsening).
   - *Layer 3 (Decision Consistency):* Prevents inverted route recommendations.
 - **Proactive Road Alerts:** Telemetry-driven bottleneck predictions and real-time rerouting triggers before drivers hit congestion.
-- **Cross-Platform Cockpits:**
-  - **Web Frontend:** React 19 + Leaflet + Tailwind CSS interactive analytics dashboard.
-  - **Mobile App:** Expo / React Native TypeScript driving cockpit with persistent storage.
+- **Mobile Driving Cockpit:** Expo / React Native TypeScript application with turn-by-turn guidance HUD, interactive route explorer, live traffic timeline, and persistent storage.
 
 ---
 
@@ -35,9 +33,6 @@ TrafficIQ is an enterprise-grade predictive traffic intelligence and turn-by-tur
 │   ├── routing/              # 3-Tier OSRM routing client & geo presets
 │   ├── scoring/              # Multi-objective preference weighting engine
 │   └── tests/                # Pytest unit & integration test suite
-├── frontend/                 # React 19 web application
-│   ├── src/                  # Components, map layers, and API clients
-│   └── .env.example          # Frontend configuration template
 ├── mobile/                   # Expo / React Native mobile application
 │   ├── src/                  # Driving HUD, Zustand stores, screens, and components
 │   └── .env.example          # Mobile configuration template
@@ -45,7 +40,6 @@ TrafficIQ is an enterprise-grade predictive traffic intelligence and turn-by-tur
 │   ├── start_all.ps1         # Windows PowerShell launcher
 │   ├── start_all.sh          # Linux / macOS Bash launcher
 │   ├── start_backend.ps1     # Standalone backend launcher
-│   ├── start_frontend.ps1    # Standalone frontend launcher
 │   └── start_mobile.ps1      # Standalone mobile launcher
 └── .github/workflows/ci.yml  # Automated CI test & build pipeline
 ```
@@ -71,8 +65,7 @@ chmod +x scripts/start_all.sh
 
 | Service | URL | Description |
 |---|---|---|
-| **Frontend Web Cockpit** | http://localhost:5173 | Interactive web map, AI explanation card, and Traffic DNA |
-| **Mobile Cockpit (Web/Expo)** | http://localhost:5174 | Turn-by-turn driving HUD and alert simulator |
+| **Mobile App (Web/Expo)** | http://localhost:5174 | Turn-by-turn driving HUD, route explorer, and alert simulator |
 | **Backend API Docs (Swagger)** | http://localhost:8005/docs | Interactive OpenAPI documentation |
 | **Backend Health Check** | http://localhost:8005/api/health | Live service connectivity status |
 
@@ -84,7 +77,6 @@ Copy example environment files to `.env` in each respective directory:
 
 ```powershell
 cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
 cp mobile/.env.example mobile/.env
 ```
 
@@ -106,16 +98,15 @@ cp mobile/.env.example mobile/.env
 
 ## 🧪 Testing & Verification
 
-Run the entire test suite across all workspace layers:
+Run tests across all active layers:
 
 ```powershell
-# Run all tests (Backend + Frontend + Mobile)
+# Run all tests (Backend + Mobile)
 npm run test:all
 
 # Or run individually:
-npm run test:backend     # Pytest unit tests (10 passed)
+npm run test:backend     # Pytest unit tests
 npm run test:pipeline    # Full algorithmic pipeline test
-npm run test:frontend    # Vitest frontend tests
 npm run test:mobile      # Vitest mobile store & adapter tests
 ```
 
@@ -125,5 +116,5 @@ npm run test:mobile      # Vitest mobile store & adapter tests
 
 - **SQLite WAL Mode:** Configured with `PRAGMA journal_mode=WAL;` and 5000ms busy timeout for multi-process reader/writer concurrency.
 - **Decoupled Database Lifespan:** Database schema initialization runs non-blockingly without synchronous dataset locks on server boot.
-- **Client Auth Header Sync:** Frontend and mobile clients inject `X-API-Key` headers dynamically.
+- **Client Auth Header Sync:** Mobile client injects `X-API-Key` headers dynamically.
 - **Cross-Platform Native Storage:** Mobile app utilizes `@react-native-async-storage/async-storage` on iOS/Android to prevent state loss across app restarts.

@@ -5,7 +5,6 @@
   "scripts": {
     "start": "npm --prefix mobile start",
     "dev": "npm --prefix mobile run dev",
-    "dev:web": "npm --prefix frontend run dev",
     "dev:mobile": "npm --prefix mobile run dev",
     "dev:backend": "python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8005",
     "backend": "python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8005",
@@ -14,16 +13,10 @@
     "mobile:web": "npm --prefix mobile run dev",
     "mobile:android": "npm --prefix mobile run android",
     "mobile:ios": "npm --prefix mobile run ios",
-    "frontend:dev": "npm --prefix frontend run dev",
-    "frontend:build": "npm --prefix frontend run build",
-    "frontend:preview": "npm --prefix frontend run preview",
-    "frontend:test": "npm --prefix frontend run test",
     "mobile:test": "npm --prefix mobile run test",
-    "build:all": "npm --prefix frontend run build",
     "test:backend": "python -m pytest backend/tests/ -v",
     "test:pipeline": "python -m backend.test_pipeline",
-    "test:frontend": "npm --prefix frontend run test",
     "test:mobile": "npm --prefix mobile run test",
-    "test:all": "npm run test:backend && npm run test:frontend && npm run test:mobile"
+    "test:all": "npm run test:backend && npm run test:mobile"
   }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable } from 'react-native';
-import { Lock, Navigation, ArrowRight, X, BellRing } from 'lucide-react-native';
+import { Lock, Navigation, ArrowRight, X, BellRing, Zap } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { EmptyState } from '../Common/EmptyState';
 import { formatClock, formatLongDate } from '../../utils/format';
@@ -16,9 +16,9 @@ const LockScreenAlertModalBase: React.FC = () => {
   const routingData = useNavigationStore(s => s.routingData);
   const acceptReroute = useNavigationStore(s => s.acceptReroute);
 
-  // Live clock, ticking while the preview is open.
   const [now, setNow] = useState(() => new Date());
   const { dialogMaxWidth } = useLayout();
+
   useEffect(() => {
     if (!showLockScreenModal) return;
     const interval = setInterval(() => setNow(new Date()), 15000);
@@ -38,12 +38,11 @@ const LockScreenAlertModalBase: React.FC = () => {
   const savings = activeAlert?.savings_min;
   const actionLabel =
     savings !== undefined && savings > 0
-      ? `Accept Reroute (-${Math.round(savings)}m)`
-      : 'Accept Reroute';
+      ? `Accept Reroute (Save ${Math.round(savings)}m)`
+      : 'Accept Faster Route';
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close}>
-      {/* The backdrop is now genuinely tappable, matching the instruction below. */}
       <Pressable
         style={styles.backdrop}
         onPress={close}
@@ -53,10 +52,10 @@ const LockScreenAlertModalBase: React.FC = () => {
         <View style={styles.topBar} pointerEvents="box-none">
           <View style={styles.lockRow}>
             <Lock size={12} color={colors.primary} />
-            <Text style={styles.lockText}>Lock Screen Simulation</Text>
+            <Text style={styles.lockText}>Lock Screen Notification Center</Text>
           </View>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={close}
             style={styles.closeBtn}
             hitSlop={spacing.hitSlop}
@@ -67,9 +66,7 @@ const LockScreenAlertModalBase: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Center Clock & Push Notification. `onPress={() => {}}` keeps taps
-            inside the card from dismissing the modal. */}
-        <Pressable accessible={false} style={[styles.centerContainer, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
+        <Pressable accessible={false} style={[styles.centerContainer, { maxWidth: dialogMaxWidth }]} onPress={e => e.stopPropagation()}>
           <Text style={styles.clockTime}>{formatClock(now)}</Text>
           <Text style={styles.clockDate}>{formatLongDate(now)}</Text>
 
@@ -86,7 +83,8 @@ const LockScreenAlertModalBase: React.FC = () => {
                     />
                   </View>
                   <Text style={styles.appName}>TrafficIQ</Text>
-                  <Text style={styles.pushTime}>now</Text>
+                  <Text style={styles.pushDot}>•</Text>
+                  <Text style={styles.pushTime}>Just now</Text>
                 </View>
                 <BellRing size={14} color={colors.fastest} />
               </View>
@@ -96,41 +94,32 @@ const LockScreenAlertModalBase: React.FC = () => {
 
               <View style={styles.pushActions}>
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={handleAction}
-                  style={styles.acceptButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={actionLabel}
+                  style={styles.actionButton}
                 >
-                  <Text style={styles.acceptButtonText}>{actionLabel}</Text>
-                  <ArrowRight size={12} color={colors.text.onAccent} strokeWidth={2.5} />
+                  <Zap size={13} color={colors.text.onAccent} />
+                  <Text style={styles.actionButtonText}>{actionLabel}</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                   onPress={close}
                   style={styles.dismissButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Dismiss alert preview"
                 >
                   <Text style={styles.dismissButtonText}>Dismiss</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
-            /* No fabricated sample alert: show the real "nothing to show" state. */
-            <EmptyState
-              title="No active alert"
-              message="Start navigating to see how proactive alerts appear on your lock screen."
-              icon={<BellRing size={20} color={colors.text.secondary} />}
-            />
+            <View style={styles.emptyCard}>
+              <EmptyState
+                title="No active lockscreen alerts"
+                message="Alerts trigger automatically when heavy congestion develops along your route."
+              />
+            </View>
           )}
-
-          <Text style={styles.hintText}>
-            Proactive background notifications alert you before you reach severe bottlenecks.
-          </Text>
         </Pressable>
-
-        <Text style={styles.bottomHint}>Tap Dismiss or outside to return</Text>
       </Pressable>
     </Modal>
   );
@@ -141,64 +130,75 @@ export const LockScreenAlertModal = React.memo(LockScreenAlertModalBase);
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: colors.scrimStrong,
-    padding: spacing.xxl,
-    justifyContent: 'space-between'
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.cardPadding
   },
   topBar: {
+    position: 'absolute',
+    top: spacing.xl,
+    left: spacing.cardPadding,
+    right: spacing.cardPadding,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg
+    justifyContent: 'space-between'
   },
   lockRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: spacing.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   lockText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.semibold
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: spacing.radius.sm,
-    backgroundColor: colors.card,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
   },
   centerContainer: {
-    alignItems: 'center',
     width: '100%',
-    alignSelf: 'center'
+    alignItems: 'center',
+    gap: spacing.md
   },
   clockTime: {
-    fontSize: 48,
-    lineHeight: 56,
+    fontSize: 56,
+    lineHeight: 64,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.bright
+    color: colors.text.bright,
+    letterSpacing: -1
   },
   clockDate: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.medium,
-    marginBottom: spacing.xxl
+    color: colors.text.secondary,
+    marginBottom: spacing.lg
   },
   pushCard: {
     width: '100%',
-    backgroundColor: colors.overlayCard,
-    borderWidth: 1,
-    borderColor: colors.fastestBorder,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
     borderRadius: spacing.radius.xxl,
-    padding: spacing.cardPadding,
+    padding: spacing.cardPaddingLg,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.7,
+    shadowRadius: 20
   },
   pushHeader: {
     flexDirection: 'row',
@@ -209,87 +209,76 @@ const styles = StyleSheet.create({
   pushHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: 6
   },
   appIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: spacing.sm,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center'
   },
   appName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
+    fontSize: 11,
+    fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
+  pushDot: {
+    fontSize: 10,
+    color: colors.text.muted
+  },
   pushTime: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     color: colors.text.muted
   },
   pushTitle: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.bright,
-    marginBottom: 3
+    marginBottom: 4
   },
   pushMessage: {
     fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    lineHeight: 18,
     color: colors.text.body,
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   pushActions: {
     flexDirection: 'row',
-    gap: spacing.md
+    alignItems: 'center',
+    gap: spacing.sm
   },
-  acceptButton: {
+  actionButton: {
     flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: spacing.radius.md,
-    minHeight: spacing.touchTargetMin,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs
+    gap: 4,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.radius.lg,
+    paddingVertical: 10
   },
-  acceptButtonText: {
-    fontSize: typography.sizes.caption,
+  actionButtonText: {
+    fontSize: 11,
     fontWeight: typography.weights.extrabold,
     color: colors.text.onAccent
   },
   dismissButton: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    paddingHorizontal: spacing.cardPadding,
-    minHeight: spacing.touchTargetMin,
-    alignItems: 'center',
-    justifyContent: 'center'
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10
   },
   dismissButtonText: {
-    fontSize: typography.sizes.caption,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.secondary
+    fontSize: 11,
+    color: colors.text.muted,
+    fontWeight: typography.weights.semibold
   },
-  hintText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    marginTop: spacing.xxl
-  },
-  bottomHint: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    // Was #475569 at 2.62:1 — effectively invisible. Now 5.65:1.
-    color: colors.text.dimmed,
-    textAlign: 'center',
-    marginBottom: spacing.lg
+  emptyCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.xl,
+    padding: spacing.cardPadding,
+    borderWidth: 1,
+    borderColor: colors.border
   }
 });

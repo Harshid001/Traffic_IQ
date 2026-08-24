@@ -85,6 +85,34 @@ export const colors = {
     onLight: '#000000'
   },
 
+  // Glassmorphic and Elevated Layer Surfaces
+  glass: {
+    base: 'rgba(17, 21, 26, 0.75)',
+    card: 'rgba(22, 27, 34, 0.82)',
+    elevated: 'rgba(28, 34, 43, 0.90)',
+    stroke: 'rgba(255, 255, 255, 0.08)',
+    strokeStrong: 'rgba(255, 255, 255, 0.15)',
+    highlight: 'rgba(255, 255, 255, 0.04)'
+  },
+
+  // Driver POI & Hazard Semantics
+  hazard: {
+    police: '#3B82F6', // Blue
+    camera: '#EC4899', // Pink
+    jam: '#EF4444',    // Red
+    hazard: '#F59E0B', // Amber
+    work: '#F97316'    // Orange
+  },
+
+  // Driver Shortcut Category Tags
+  poi: {
+    ev: '#10B981',
+    fuel: '#F59E0B',
+    coffee: '#8B5CF6',
+    parking: '#06B6D4',
+    food: '#EC4899'
+  },
+
   // Traffic Congestion Spectrum
   congestion: {
     freeflow: '#10B981', // 0-30%
@@ -99,3 +127,4 @@ export const colors = {
     inactiveDim: '#334155'
   }
 };
+

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop, Line, Rect, Text as SvgText } from 'react-native-svg';
-import { LocateFixed, Compass, Navigation2, Zap, ShieldCheck } from 'lucide-react-native';
+import { LocateFixed, Compass, Layers, ShieldCheck, Zap } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -11,8 +11,14 @@ const LEAFLET_VERSION = '1.9.4';
 const LEAFLET_CSS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
 const LEAFLET_JS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`;
 
+const MAP_LAYERS = [
+  { id: 'dark', name: 'Dark Mode', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
+  { id: 'voyager', name: 'Voyager', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' },
+  { id: 'light', name: 'Light', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' }
+];
+
 /**
- * Enhanced Vector Route Map Visualizer (used on Native, offline, or during map loading).
+ * Enhanced Vector Route Map Visualizer (used on Native or during map loading).
  */
 const RouteIllustrationMap: React.FC<{
   coordinates: [number, number][];
@@ -24,7 +30,6 @@ const RouteIllustrationMap: React.FC<{
   etaMin: number;
   isNavigating: boolean;
   progressPct: number;
-  segments?: any[];
 }> = ({
   coordinates,
   currentLat,
@@ -34,17 +39,14 @@ const RouteIllustrationMap: React.FC<{
   distanceKm,
   etaMin,
   isNavigating,
-  progressPct,
-  segments = []
+  progressPct
 }) => {
   const width = 360;
   const height = 380;
   const padding = 50;
 
-  // Project lat/lon to SVG canvas coordinates
   const { points, puckPos } = useMemo(() => {
     if (!coordinates || coordinates.length < 2) {
-      // Default placeholder path
       return {
         points: [
           { x: 60, y: 300 },
@@ -105,18 +107,12 @@ const RouteIllustrationMap: React.FC<{
             <Stop offset="50%" stopColor={colors.primary} stopOpacity="0.95" />
             <Stop offset="100%" stopColor={colors.primaryBright} stopOpacity="1" />
           </LinearGradient>
-          <LinearGradient id="pathBacking" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={colors.neutral} stopOpacity="0.5" />
-            <Stop offset="100%" stopColor={colors.surface} stopOpacity="0.8" />
-          </LinearGradient>
         </Defs>
 
         {/* Ambient Grid Lines */}
-        <Line x1="40" y1="100" x2="320" y2="100" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.4" />
-        <Line x1="40" y1="200" x2="320" y2="200" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.4" />
-        <Line x1="40" y1="300" x2="320" y2="300" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.4" />
-        <Line x1="120" y1="40" x2="120" y2="340" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.4" />
-        <Line x1="240" y1="40" x2="240" y2="340" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.4" />
+        <Line x1="40" y1="100" x2="320" y2="100" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.3" />
+        <Line x1="40" y1="200" x2="320" y2="200" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.3" />
+        <Line x1="40" y1="300" x2="320" y2="300" stroke={colors.border} strokeWidth="1" strokeDasharray="4 6" opacity="0.3" />
 
         {/* Glow halo behind active route */}
         <Path d={pathD} fill="none" stroke={colors.primary} strokeWidth="12" strokeOpacity="0.15" strokeLinecap="round" strokeLinejoin="round" />
@@ -125,7 +121,7 @@ const RouteIllustrationMap: React.FC<{
         {/* Primary Route Path */}
         <Path d={pathD} fill="none" stroke="url(#routeGlow)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Intermediate waypoint checkpoints */}
+        {/* Checkpoint nodes */}
         {points.slice(1, -1).map((pt, i) => (
           <G key={`wp-${i}`}>
             <Circle cx={pt.x} cy={pt.y} r="5" fill={colors.card} stroke={colors.primaryBorder} strokeWidth="2" />
@@ -135,8 +131,8 @@ const RouteIllustrationMap: React.FC<{
 
         {/* Origin Pin A */}
         <G>
-          <Circle cx={originPt.x} cy={originPt.y} r="14" fill={colors.infoSoft} stroke={colors.info} strokeWidth="1.5" />
-          <Circle cx={originPt.x} cy={originPt.y} r="9" fill={colors.info} />
+          <Circle cx={originPt.x} cy={originPt.y} r="13" fill={colors.infoSoft} stroke={colors.info} strokeWidth="1.5" />
+          <Circle cx={originPt.x} cy={originPt.y} r="8" fill={colors.info} />
           <SvgText x={originPt.x} y={originPt.y + 3.5} fill="#000" fontSize="9" fontWeight="bold" textAnchor="middle">
             A
           </SvgText>
@@ -144,8 +140,8 @@ const RouteIllustrationMap: React.FC<{
 
         {/* Destination Pin B */}
         <G>
-          <Circle cx={destPt.x} cy={destPt.y} r="14" fill={colors.primarySoft} stroke={colors.primary} strokeWidth="1.5" />
-          <Circle cx={destPt.x} cy={destPt.y} r="9" fill={colors.primary} />
+          <Circle cx={destPt.x} cy={destPt.y} r="13" fill={colors.primarySoft} stroke={colors.primary} strokeWidth="1.5" />
+          <Circle cx={destPt.x} cy={destPt.y} r="8" fill={colors.primary} />
           <SvgText x={destPt.x} y={destPt.y + 3.5} fill="#000" fontSize="9" fontWeight="bold" textAnchor="middle">
             B
           </SvgText>
@@ -154,17 +150,17 @@ const RouteIllustrationMap: React.FC<{
         {/* Vehicle Navigation Puck */}
         <G transform={`translate(${puckPos.x}, ${puckPos.y}) rotate(${headingDeg})`}>
           <Circle cx="0" cy="0" r="14" fill={colors.primaryGlow} />
-          <Circle cx="0" cy="0" r="10" fill={colors.primary} stroke="#FFF" strokeWidth="2" />
-          <Path d="M 0 -6 L 4 4 L 0 2 L -4 4 Z" fill={colors.background} />
+          <Circle cx="0" cy="0" r="9" fill={colors.primary} stroke="#FFF" strokeWidth="2" />
+          <Path d="M 0 -5 L 3 3 L 0 1.5 L -3 3 Z" fill={colors.background} />
         </G>
       </Svg>
 
-      {/* Visual Route Info Card */}
+      {/* Floating Route Info Pill */}
       <View style={styles.routePill}>
         <View style={styles.routePillHeader}>
           <View style={styles.liveIndicator}>
             <View style={styles.pulseDot} />
-            <Text style={styles.liveLabel}>{isNavigating ? 'SIMULATED NAVIGATION' : 'ROUTE VISUALIZER'}</Text>
+            <Text style={styles.liveLabel}>{isNavigating ? 'NAVIGATING' : 'ROUTE PREVIEW'}</Text>
           </View>
           <Text style={styles.routeDistance}>{distanceKm} km · {etaMin} min</Text>
         </View>
@@ -179,10 +175,11 @@ const RouteIllustrationMap: React.FC<{
 export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
   const mapContainerRef = useRef<any>(null);
   const mapRef = useRef<any>(null);
+  const tileLayerRef = useRef<any>(null);
   const routeLayerRef = useRef<any>(null);
   const puckMarkerRef = useRef<any>(null);
   const hasFittedRef = useRef(false);
-  const [webMapReady, setWebMapReady] = useState(false);
+  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
 
   const routingData = useNavigationStore(s => s.routingData);
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
@@ -202,9 +199,16 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
 
   const coordinates = selectedRoute?.coordinates ?? [];
 
-  /**
-   * Load Leaflet on Web.
-   */
+  /** Cycle through map styles */
+  const toggleMapLayer = useCallback(() => {
+    const nextIdx = (activeLayerIndex + 1) % MAP_LAYERS.length;
+    setActiveLayerIndex(nextIdx);
+    if (tileLayerRef.current && mapRef.current) {
+      tileLayerRef.current.setUrl(MAP_LAYERS[nextIdx].url);
+    }
+  }, [activeLayerIndex]);
+
+  /** Load Leaflet on Web */
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     let cancelled = false;
@@ -223,16 +227,13 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
           attributionControl: false
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        tileLayerRef.current = L.tileLayer(MAP_LAYERS[activeLayerIndex].url, {
           maxZoom: 19
         }).addTo(map);
 
         routeLayerRef.current = L.layerGroup().addTo(map);
         mapRef.current = map;
-        setWebMapReady(true);
-      } catch {
-        setWebMapReady(false);
-      }
+      } catch {}
     };
 
     if ((window as any).L) {
@@ -263,6 +264,7 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        tileLayerRef.current = null;
         routeLayerRef.current = null;
         puckMarkerRef.current = null;
       }
@@ -295,10 +297,22 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
             ? colors.fastestDeep
             : colors.map.inactiveDim;
 
+      // Halo for active route
+      if (isSelected) {
+        const glowLine = L.polyline(route.coordinates, {
+          color: colors.primary,
+          weight: 10,
+          opacity: 0.25,
+          lineCap: 'round',
+          lineJoin: 'round'
+        });
+        layer.addLayer(glowLine);
+      }
+
       const polyline = L.polyline(route.coordinates, {
         color,
         weight: isSelected ? 6 : 4,
-        opacity: isSelected ? 0.95 : 0.5,
+        opacity: isSelected ? 1.0 : 0.45,
         lineCap: 'round',
         lineJoin: 'round'
       });
@@ -314,9 +328,9 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
       const makePin = (label: string, bg: string) =>
         L.divIcon({
           className: '',
-          html: `<div style="width:20px;height:20px;border-radius:50%;background:${bg};border:2px solid #FFF;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#000;">${label}</div>`,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+          html: `<div style="width:24px;height:24px;border-radius:50%;background:${bg};border:2.5px solid #FFF;box-shadow:0 2px 8px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#000;">${label}</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
         });
 
       layer.addLayer(L.marker(coordinates[0], { icon: makePin('A', colors.info) }));
@@ -326,7 +340,7 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
     }
 
     if (!isNavigating && coordinates.length > 0 && !hasFittedRef.current) {
-      map.fitBounds(L.latLngBounds(coordinates), { padding: [30, 30], maxZoom: 15 });
+      map.fitBounds(L.latLngBounds(coordinates), { padding: [36, 36], maxZoom: 15 });
       hasFittedRef.current = true;
     }
   }, [routes, selectedRouteId, coordinates, isNavigating, setSelectedRouteId]);
@@ -339,11 +353,11 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
     if (!L || !map) return;
 
     const html = `
-      <div style="width:28px;height:28px;border-radius:50%;background:${colors.primary};border:2.5px solid #FFF;box-shadow:0 0 12px rgba(16,185,129,0.8);display:flex;align-items:center;justify-content:center;transform:rotate(${headingDeg}deg);transition:transform 0.3s ease;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="${colors.background}"><path d="M12 2L2 22l10-4 10 4L12 2z"/></svg>
+      <div style="width:30px;height:30px;border-radius:50%;background:${colors.primary};border:2.5px solid #FFF;box-shadow:0 0 14px rgba(16,185,129,0.9);display:flex;align-items:center;justify-content:center;transform:rotate(${headingDeg}deg);transition:transform 0.3s ease;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="${colors.background}"><path d="M12 2L2 22l10-4 10 4L12 2z"/></svg>
       </div>`;
 
-    const icon = L.divIcon({ className: '', html, iconSize: [28, 28], iconAnchor: [14, 14] });
+    const icon = L.divIcon({ className: '', html, iconSize: [30, 30], iconAnchor: [15, 15] });
 
     if (puckMarkerRef.current) {
       puckMarkerRef.current.setLatLng([currentLat, currentLon]);
@@ -378,7 +392,6 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
           style={{ width: '100%', height: '100%', backgroundColor: colors.background }}
         />
       ) : (
-        /* Native Vector Route Map Illustration */
         <RouteIllustrationMap
           coordinates={coordinates}
           currentLat={currentLat}
@@ -389,22 +402,34 @@ export const CockpitMap: React.FC<{ style?: any }> = ({ style }) => {
           etaMin={selectedRoute?.predicted_eta_p50 || 28.0}
           isNavigating={isNavigating}
           progressPct={progressPct}
-          segments={selectedRoute?.segments}
         />
       )}
 
-      {/* Floating Recenter & Compass Controls */}
+      {/* Floating Recenter, Map Layer & Compass Controls */}
       <View style={styles.floatingControls}>
         <TouchableOpacity
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           onPress={handleRecenter}
           style={styles.controlButton}
           hitSlop={spacing.hitSlop}
           accessibilityRole="button"
-          accessibilityLabel="Recenter map on current position"
+          accessibilityLabel="Recenter map on current location"
         >
           <LocateFixed size={18} color={colors.primary} />
         </TouchableOpacity>
+
+        {Platform.OS === 'web' && (
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={toggleMapLayer}
+            style={styles.controlButton}
+            hitSlop={spacing.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel={`Toggle map style: currently ${MAP_LAYERS[activeLayerIndex].name}`}
+          >
+            <Layers size={17} color={colors.text.bright} />
+          </TouchableOpacity>
+        )}
 
         <View
           style={styles.controlButton}
@@ -434,12 +459,12 @@ const styles = StyleSheet.create({
   routePill: {
     position: 'absolute',
     bottom: 90,
-    left: spacing.xl,
-    right: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
     backgroundColor: colors.overlaySurface,
     borderRadius: spacing.radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     padding: spacing.md,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
@@ -464,14 +489,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary
   },
   liveLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
+    lineHeight: 11,
     fontWeight: typography.weights.extrabold,
     color: colors.primary
   },
   routeDistance: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.text.secondary,
     fontWeight: typography.weights.semibold
   },
@@ -484,23 +508,27 @@ const styles = StyleSheet.create({
   floatingControls: {
     position: 'absolute',
     top: spacing.xl,
-    right: spacing.xl,
+    right: spacing.md,
     zIndex: 30,
-    gap: spacing.md
+    gap: spacing.sm
   },
   controlButton: {
-    width: spacing.touchTargetMin,
-    height: spacing.touchTargetMin,
-    borderRadius: spacing.radius.md,
+    width: 42,
+    height: 42,
+    borderRadius: spacing.radius.lg,
     backgroundColor: colors.overlaySurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6
   },
   compassLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
+    lineHeight: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.secondary
   }

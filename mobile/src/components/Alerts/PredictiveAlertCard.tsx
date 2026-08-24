@@ -1,19 +1,11 @@
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { AlertTriangle, Sparkles, X, ArrowRight } from 'lucide-react-native';
+import { AlertTriangle, Sparkles, X, ArrowRight, Zap, Check } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
-/**
- * Proactive road alert.
- *
- * Renders inline within the overlay stack owned by `NavigateScreen`, so it can
- * no longer be drawn on top of the maneuver HUD. Previously this card was
- * absolutely positioned at `top: 90, zIndex: 45` while the HUD sat at
- * `top: 10, zIndex: 35`, which put the alert over the in-drive controls.
- */
 const PredictiveAlertCardBase: React.FC = () => {
   const activeAlert = useNavigationStore(s => s.activeAlert);
   const dismissActiveAlert = useNavigationStore(s => s.dismissActiveAlert);
@@ -42,19 +34,16 @@ const PredictiveAlertCardBase: React.FC = () => {
       style={styles.card}
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
-      accessibilityLabel={`Predictive road alert. ${activeAlert.title}. ${activeAlert.message}`}
+      accessibilityLabel={`Live alert. ${activeAlert.title}. ${activeAlert.message}`}
     >
-      {/* Glow Strip */}
-      <View style={styles.glowStrip} />
-
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconBox}>
-            <AlertTriangle size={16} color={colors.fastest} />
+            <AlertTriangle size={16} color={colors.warningBright} />
           </View>
           <View style={styles.headerTextCol}>
-            <Text style={styles.alertCategory}>PREDICTIVE ROAD ALERT</Text>
+            <Text style={styles.alertCategory}>LIVE TRAFFIC ADVISORY</Text>
             <Text style={styles.alertTitle} numberOfLines={2}>
               {activeAlert.title}
             </Text>
@@ -62,7 +51,7 @@ const PredictiveAlertCardBase: React.FC = () => {
         </View>
 
         <TouchableOpacity
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           onPress={dismissActiveAlert}
           style={styles.closeBtn}
           hitSlop={spacing.hitSlop}
@@ -76,24 +65,23 @@ const PredictiveAlertCardBase: React.FC = () => {
       {/* Message */}
       <Text style={styles.messageText}>{activeAlert.message}</Text>
 
-      {/* Forecast Numbers Grid */}
+      {/* Metrics Row */}
       {hasForecast && (
         <View style={styles.gridRow}>
           <View style={styles.gridCell}>
-            <Text style={styles.gridCellLabel}>CURRENT</Text>
+            <Text style={styles.gridCellLabel}>CURRENT DELAY</Text>
             <Text style={styles.gridCellVal}>{Math.round(activeAlert.current_cong!)}%</Text>
           </View>
           <View style={styles.gridCell}>
-            <Text style={styles.gridCellLabel}>+20 MIN</Text>
-            <Text style={[styles.gridCellVal, { color: colors.fastest }]}>
+            <Text style={styles.gridCellLabel}>OUTLOOK (+20m)</Text>
+            <Text style={[styles.gridCellVal, { color: colors.fastestBright }]}>
               {Math.round(activeAlert.fc20_cong!)}%
             </Text>
           </View>
-          {/* Only shown when the server reported a delay — no `|| 4.5` default. */}
           {activeAlert.expected_delay_min !== undefined && (
             <View style={styles.gridCell}>
-              <Text style={styles.gridCellLabel}>EST. DELAY</Text>
-              <Text style={[styles.gridCellVal, { color: colors.danger }]}>
+              <Text style={styles.gridCellLabel}>EST. TIME LOSS</Text>
+              <Text style={[styles.gridCellVal, { color: colors.dangerBright }]}>
                 +{activeAlert.expected_delay_min}m
               </Text>
             </View>
@@ -101,39 +89,32 @@ const PredictiveAlertCardBase: React.FC = () => {
         </View>
       )}
 
-      {/* Savings Callout */}
-      {hasSavings && (
-        <View style={styles.savingsBox}>
-          <View style={styles.savingsLeft}>
-            <Sparkles size={14} color={colors.primary} />
-            <Text style={styles.savingsText}>
-              Alternative saves ~{activeAlert.savings_min} min
-            </Text>
-          </View>
-        </View>
-      )}
+      {/* Action Buttons */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={dismissActiveAlert}
+          style={styles.dismissBtn}
+          hitSlop={spacing.hitSlop}
+        >
+          <Text style={styles.dismissText}>Ignore</Text>
+        </TouchableOpacity>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={handleAction}
-        style={styles.rerouteButton}
-        accessibilityRole="button"
-        accessibilityLabel={
-          hasReroute
-            ? activeAlert.action_label || 'Accept reroute'
-            : 'Dismiss alert'
-        }
-      >
-        <Text style={styles.rerouteButtonText}>
-          {hasReroute
-            ? activeAlert.better_route_id
-              ? 'Accept Reroute'
-              : 'Switch to Best Alternative'
-            : 'Acknowledge'}
-        </Text>
-        <ArrowRight size={14} color={colors.text.onAccent} strokeWidth={2.5} />
-      </TouchableOpacity>
+        {hasReroute && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleAction}
+            style={styles.rerouteBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Accept recommended alternate route"
+          >
+            <Zap size={14} color={colors.text.onAccent} />
+            <Text style={styles.rerouteBtnText}>
+              {hasSavings ? `Switch Route (Save ${activeAlert.savings_min}m)` : 'Accept Faster Bypass'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -144,141 +125,116 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.fastestBorder,
+    borderColor: colors.warningBorder,
     borderRadius: spacing.radius.xl,
-    padding: spacing.cardPadding,
-    shadowColor: colors.fastest,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    position: 'relative',
-    overflow: 'hidden'
-  },
-  glowStrip: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: colors.fastest
+    padding: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    gap: spacing.md
+    marginBottom: spacing.xs
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
     flex: 1
   },
   iconBox: {
     width: 32,
     height: 32,
-    borderRadius: spacing.radius.md,
-    backgroundColor: colors.fastestSoft,
+    borderRadius: 16,
+    backgroundColor: colors.warningSoft,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md
+    justifyContent: 'center'
   },
   headerTextCol: {
     flex: 1
   },
   alertCategory: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    letterSpacing: typography.tracking.normal
+    color: colors.warningBright,
+    letterSpacing: 0.5
   },
   alertTitle: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.bright
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: spacing.radius.sm,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.card,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
   },
   messageText: {
     fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    lineHeight: 18,
     color: colors.text.body,
-    marginBottom: spacing.lg
+    marginBottom: spacing.sm
   },
   gridRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   gridCell: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.sm,
-    padding: spacing.md,
     alignItems: 'center'
   },
   gridCellLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted,
+    marginBottom: 2
   },
   gridCellVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.primary,
-    marginTop: 2
+    color: colors.text.primary
   },
-  savingsBox: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg
-  },
-  savingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
-  },
-  savingsText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
-    color: colors.primaryBright,
-    flex: 1
-  },
-  rerouteButton: {
-    backgroundColor: colors.fastest,
-    borderRadius: spacing.radius.lg,
-    minHeight: spacing.touchTargetMin,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     gap: spacing.sm
   },
-  rerouteButtonText: {
-    fontSize: typography.sizes.caption,
+  dismissBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6
+  },
+  dismissText: {
+    fontSize: 11,
+    color: colors.text.muted,
+    fontWeight: typography.weights.semibold
+  },
+  rerouteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8
+  },
+  rerouteBtnText: {
+    fontSize: 11,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.onAccent,
-    letterSpacing: typography.tracking.normal,
-    textTransform: 'uppercase'
+    color: colors.text.onAccent
   }
 });

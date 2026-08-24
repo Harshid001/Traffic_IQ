@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { GitFork } from 'lucide-react-native';
+import { GitFork, Sparkles, Navigation } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { RouteComparisonCard } from '../components/Routes/RouteComparisonCard';
 import { TradeoffMatrix } from '../components/Routes/TradeoffMatrix';
@@ -40,7 +40,7 @@ export const RoutesScreen: React.FC = () => {
       errorTitle="Route calculation failed"
       isEmpty={!isLoadingRoutes && !routesError && routes.length === 0}
       emptyTitle="No routes scored"
-      emptyMessage="The engine returned no candidate routes for this corridor."
+      emptyMessage="Calculate a corridor to see route comparison and alternatives."
       emptyIcon={<GitFork size={20} color={colors.text.secondary} />}
       isStale={!!routingData?.is_fallback}
       lastUpdatedAt={routingData?.fetched_at}
@@ -52,12 +52,13 @@ export const RoutesScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Screen Header */}
-        <View style={styles.screenHeader}>
+        <View style={styles.contentWrapper}>
+          {/* Screen Header */}
+          <View style={styles.screenHeader}>
           <View style={styles.headerTextCol}>
             <View style={styles.titleRow}>
-              <GitFork size={16} color={colors.primary} />
-              <Text style={styles.titleText}>Route Intelligence</Text>
+              <GitFork size={18} color={colors.primary} />
+              <Text style={styles.titleText}>Route Explorer</Text>
             </View>
             <Text style={styles.subText} numberOfLines={1}>
               {routingData?.corridor_name || 'Active navigation corridor'}
@@ -65,26 +66,29 @@ export const RoutesScreen: React.FC = () => {
           </View>
 
           <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{routes.length} Scored</Text>
+            <Text style={styles.countBadgeText}>{routes.length} Alternatives</Text>
           </View>
         </View>
 
         {/* Top Primary Route Cards */}
         {bestRoute && (
           <View>
-            <RouteComparisonCard route={bestRoute} type="best" />
+            <RouteComparisonCard
+              route={bestRoute}
+              type="best"
+              timeDeltaMin={fastestRoute && fastestRoute.id !== bestRoute.id ? Math.round(bestRoute.predicted_eta_p50 - fastestRoute.predicted_eta_p50) : 0}
+            />
             {fastestRoute && fastestRoute.id !== bestRoute.id && (
-              <RouteComparisonCard route={fastestRoute} type="fastest" />
+              <RouteComparisonCard
+                route={fastestRoute}
+                type="fastest"
+                timeDeltaMin={Math.round(fastestRoute.predicted_eta_p50 - bestRoute.predicted_eta_p50)}
+              />
             )}
           </View>
         )}
 
-        {/* Trade-off Matrix */}
-        {fastestRoute && bestRoute && fastestRoute.id !== bestRoute.id && (
-          <TradeoffMatrix fastestRoute={fastestRoute} bestRoute={bestRoute} />
-        )}
-
-        {/* Validated AI Explanation */}
+        {/* AI Driving Copilot Explanation */}
         {bestRoute && routingData?.explanation && (
           <VerifiedExplanation
             explanation={routingData.explanation}
@@ -93,15 +97,26 @@ export const RoutesScreen: React.FC = () => {
           />
         )}
 
+        {/* Trade-off Matrix */}
+        {fastestRoute && bestRoute && fastestRoute.id !== bestRoute.id && (
+          <TradeoffMatrix fastestRoute={fastestRoute} bestRoute={bestRoute} />
+        )}
+
         {/* Secondary Options */}
         {otherRoutes.length > 0 && (
           <View style={styles.secondarySection}>
-            <Text style={styles.secondaryTitle}>SECONDARY OPTIONS</Text>
+            <Text style={styles.secondaryTitle}>ADDITIONAL SCENIC & TOLL-FREE ALTERNATIVES</Text>
             {otherRoutes.map(r => (
-              <RouteComparisonCard key={r.id} route={r} type="alternative" />
+              <RouteComparisonCard
+                key={r.id}
+                route={r}
+                type="alternative"
+                timeDeltaMin={bestRoute ? Math.round(r.predicted_eta_p50 - bestRoute.predicted_eta_p50) : 0}
+              />
             ))}
           </View>
         )}
+        </View>
       </ScrollView>
     </DataStateWrapper>
   );
@@ -116,11 +131,10 @@ const styles = StyleSheet.create({
     padding: spacing.cardPadding,
     paddingBottom: spacing.xxl
   },
-  stateWrapper: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    padding: spacing.cardPadding
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 580,
+    alignSelf: 'center'
   },
   screenHeader: {
     flexDirection: 'row',
@@ -135,41 +149,40 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   titleText: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
+    fontSize: typography.sizes.h2,
+    lineHeight: typography.line.h2,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   subText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.text.secondary,
     marginTop: 1
   },
   countBadge: {
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
+    backgroundColor: colors.primarySoft,
+    borderRadius: spacing.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
     paddingHorizontal: spacing.md,
-    paddingVertical: 3
+    paddingVertical: 4
   },
   countBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.text.body
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.primary
   },
   secondarySection: {
-    marginTop: spacing.lg
+    marginTop: spacing.md
   },
   secondaryTitle: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.normal,
-    marginBottom: spacing.md
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm
   }
 });

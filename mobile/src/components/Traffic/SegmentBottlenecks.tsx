@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Layers, AlertTriangle } from 'lucide-react-native';
+import { Layers, AlertTriangle, CheckCircle, Navigation } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { useTrafficStore } from '../../store/trafficStore';
 import { EmptyState } from '../Common/EmptyState';
@@ -34,23 +34,27 @@ const SegmentBottlenecksBase: React.FC<SegmentBottlenecksProps> = ({ route }) =>
     <Card style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Layers size={14} color={colors.info} />
-          <Text style={styles.title}>SEGMENT CONGESTION MONITOR</Text>
+          <View style={styles.iconCircle}>
+            <Layers size={14} color={colors.info} />
+          </View>
+          <View>
+            <Text style={styles.title}>LIVE ROAD SEGMENTS & BOTTLENECK MONITOR</Text>
+            <Text style={styles.subTitle}>Step-by-step traffic speed and hazard detection</Text>
+          </View>
         </View>
-        <Text style={styles.subText}>
+        <Text style={styles.countBadge}>
           {segments.length} {segments.length === 1 ? 'Segment' : 'Segments'}
         </Text>
       </View>
 
       {segments.length === 0 ? (
         <EmptyState
-          title="No segments reported"
-          message="The routing engine did not break this route into segments."
+          title="No road segments found"
+          message="The routing service has not broken this path into segments."
         />
       ) : (
         <View style={styles.segmentList}>
           {segments.map((seg, idx) => {
-            // Only render a percentage when the server actually sent one.
             const hasCong = seg.congestion !== undefined && seg.congestion !== null;
             const cong = hasCong ? Math.round(seg.congestion) : null;
             const tier = cong === null ? null : congestionTier(cong);
@@ -60,14 +64,16 @@ const SegmentBottlenecksBase: React.FC<SegmentBottlenecksProps> = ({ route }) =>
             return (
               <TouchableOpacity
                 key={segId}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
                 onPress={() => handleSelect(segId)}
                 style={[styles.segmentItem, isSelected && styles.segmentItemSelected]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${seg.name}. ${seg.length_km} kilometres, freeflow ${seg.freeflow_speed} kilometres per hour${cong !== null ? `, congestion ${cong} percent` : ''}${seg.incident_flag === 1 ? '. Hazard reported.' : ''}`}
-                accessibilityHint="Loads the 24-hour profile for this segment"
               >
+                <View style={styles.segmentIndexCol}>
+                  <Text style={styles.segmentIndex}>{idx + 1}</Text>
+                </View>
+
                 <View style={styles.segmentItemLeft}>
                   <View style={styles.nameRow}>
                     <Text style={styles.segmentName} numberOfLines={1}>
@@ -76,12 +82,12 @@ const SegmentBottlenecksBase: React.FC<SegmentBottlenecksProps> = ({ route }) =>
                     {seg.incident_flag === 1 && (
                       <View style={styles.hazardBadge}>
                         <AlertTriangle size={10} color={colors.danger} />
-                        <Text style={styles.hazardText}>Hazard</Text>
+                        <Text style={styles.hazardText}>Delay Incident</Text>
                       </View>
                     )}
                   </View>
                   <Text style={styles.segmentSub}>
-                    {seg.length_km} km • Freeflow: {seg.freeflow_speed} km/h
+                    {seg.length_km} km • Free-flow speed: {seg.freeflow_speed} km/h
                   </Text>
                 </View>
 
@@ -91,25 +97,25 @@ const SegmentBottlenecksBase: React.FC<SegmentBottlenecksProps> = ({ route }) =>
                     tier === 'heavy'
                       ? styles.congHeavy
                       : tier === 'moderate'
-                        ? styles.congModerate
-                        : tier === 'freeflow'
-                          ? styles.congFreeflow
-                          : styles.congUnknown
+                      ? styles.congModerate
+                      : tier === 'freeflow'
+                      ? styles.congFreeflow
+                      : styles.congUnknown
                   ]}
                 >
                   <Text
                     style={[
-                      styles.congText,
+                      styles.congBadgeText,
                       tier === 'heavy'
-                        ? styles.textHeavy
+                        ? styles.congHeavyText
                         : tier === 'moderate'
-                          ? styles.textModerate
-                          : tier === 'freeflow'
-                            ? styles.textFreeflow
-                            : styles.textUnknown
+                        ? styles.congModerateText
+                        : tier === 'freeflow'
+                        ? styles.congFreeflowText
+                        : styles.congUnknownText
                     ]}
                   >
-                    {cong === null ? '—' : `${cong}%`}
+                    {cong !== null ? `${cong}% Delay` : 'Normal'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -125,51 +131,75 @@ export const SegmentBottlenecks = React.memo(SegmentBottlenecksBase);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.lg
+    padding: spacing.cardPadding,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    gap: spacing.md
+    marginBottom: spacing.md
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
+    gap: spacing.sm
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.infoSoft,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal
+    color: colors.text.bright,
+    letterSpacing: 0.5
   },
-  subText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  subTitle: {
+    fontSize: 10,
+    color: colors.text.muted,
+    marginTop: 1
+  },
+  countBadge: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
     color: colors.text.muted
   },
   segmentList: {
-    gap: spacing.sm
+    gap: spacing.xs
   },
   segmentItem: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm
   },
   segmentItemSelected: {
-    borderColor: colors.primaryBorder,
+    borderColor: colors.primary,
     backgroundColor: colors.primaryFaint
+  },
+  segmentIndexCol: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  segmentIndex: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted
   },
   segmentItemLeft: {
     flex: 1
@@ -177,73 +207,64 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs,
+    marginBottom: 2
   },
   segmentName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
-    flexShrink: 1
+    flex: 1
   },
   hazardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: colors.dangerSoft,
-    borderRadius: spacing.xs,
-    paddingHorizontal: spacing.xs,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: 5,
     paddingVertical: 1
   },
   hazardText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
     color: colors.dangerBright
   },
   segmentSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
-    marginTop: 2
+    fontSize: 11,
+    color: colors.text.secondary
   },
   congBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
     borderRadius: spacing.radius.sm,
-    borderWidth: 1
-  },
-  congFreeflow: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primaryBorder
-  },
-  congModerate: {
-    backgroundColor: colors.fastestSoft,
-    borderColor: colors.fastestBorder
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4
   },
   congHeavy: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.dangerBorder
+    backgroundColor: colors.dangerSoft
+  },
+  congModerate: {
+    backgroundColor: colors.fastestSoft
+  },
+  congFreeflow: {
+    backgroundColor: colors.primarySoft
   },
   congUnknown: {
-    backgroundColor: colors.neutral,
-    borderColor: colors.border
+    backgroundColor: colors.card
   },
-  congText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+  congBadgeText: {
+    fontSize: 10,
     fontWeight: typography.weights.extrabold
   },
-  textFreeflow: {
-    color: colors.primary
-  },
-  textModerate: {
-    color: colors.fastest
-  },
-  textHeavy: {
+  congHeavyText: {
     color: colors.dangerBright
   },
-  textUnknown: {
-    color: colors.text.secondary
+  congModerateText: {
+    color: colors.fastestBright
+  },
+  congFreeflowText: {
+    color: colors.primary
+  },
+  congUnknownText: {
+    color: colors.text.muted
   }
 });

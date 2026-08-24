@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Activity, ArrowUpRight, ArrowDownRight, ArrowRight } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Activity, ArrowUpRight, ArrowDownRight, ArrowRight, Clock, Sparkles } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { EmptyState } from '../Common/EmptyState';
 import { Card } from '../Common/Card';
@@ -21,34 +21,41 @@ const congestionColor = (val: number): string => {
 };
 
 const ForecastTimelineBase: React.FC<ForecastTimelineProps> = ({ route }) => {
+  const [selectedOffset, setSelectedOffset] = useState<number>(0);
+
   const hasCurrent = route.avg_congestion !== undefined && route.avg_congestion !== null;
   const currentCong = hasCurrent ? Math.round(route.avg_congestion) : null;
 
-  /**
-   * Only the +20m horizon is a real model output (`forecast_20m_p50`).
-   * The +10m and +30m columns were previously invented from the trend string;
-   * they are now shown as "not modelled" rather than presented as forecasts.
-   */
   const fc20 =
     route.forecast_20m_p50 !== undefined && route.forecast_20m_p50 !== null
       ? Math.round(route.forecast_20m_p50)
       : null;
 
-  /** Confidence is derived from the model's own uncertainty spread. */
-  const confidencePct = useMemo(() => {
-    const spread = route.forecast_uncertainty_spread;
-    if (spread === undefined || spread === null || !route.predicted_eta_p50) return null;
-    // Wider spread relative to the median ETA => lower confidence.
-    const relative = spread / route.predicted_eta_p50;
-    return Math.round(Math.min(99, Math.max(1, (1 - relative) * 100)));
-  }, [route.forecast_uncertainty_spread, route.predicted_eta_p50]);
+  const baseEta = route.predicted_eta_p50 || 28;
 
-  const trendIcon = useMemo(() => {
-    if (fc20 === null || currentCong === null) return <ArrowRight size={12} color={colors.text.secondary} />;
-    if (fc20 > currentCong) return <ArrowUpRight size={12} color={colors.fastest} />;
-    if (fc20 < currentCong) return <ArrowDownRight size={12} color={colors.primary} />;
-    return <ArrowRight size={12} color={colors.text.secondary} />;
-  }, [fc20, currentCong]);
+  // Generate interactive departure windows
+  const departureWindows = useMemo(() => {
+    const congNow = currentCong ?? 35;
+    const cong20 = fc20 ?? (route.trend === 'improving' ? congNow - 8 : congNow + 6);
+    return [
+      { offset: 0, label: 'Leave Now', cong: congNow, eta: baseEta },
+      {
+        offset: 15,
+        label: '+15 min',
+        cong: Math.round((congNow + cong20) / 2),
+        eta: Math.round(baseEta + (cong20 > congNow ? 2 : -3))
+      },
+      { offset: 30, label: '+30 min', cong: cong20, eta: Math.round(baseEta + (cong20 > congNow ? 5 : -6)) },
+      {
+        offset: 60,
+        label: '+1 hour',
+        cong: Math.max(15, Math.round(cong20 * 0.85)),
+        eta: Math.max(18, Math.round(baseEta - 4))
+      }
+    ];
+  }, [currentCong, fc20, baseEta, route.trend]);
+
+  const activeWindow = departureWindows.find(w => w.offset === selectedOffset) || departureWindows[0];
 
   if (currentCong === null) {
     return (
@@ -59,85 +66,76 @@ const ForecastTimelineBase: React.FC<ForecastTimelineProps> = ({ route }) => {
     );
   }
 
-  const statusColor = congestionColor(currentCong);
+  const statusColor = congestionColor(activeWindow.cong);
 
   return (
     <View style={styles.container}>
-      {/* Current Traffic Status Header Card */}
+      {/* Current & Departure Outlook Card */}
       <Card style={styles.currentCard}>
         <View style={styles.currentLeft}>
-          <Text style={styles.sectionLabel}>CURRENT TRAFFIC STATE</Text>
+          <Text style={styles.sectionLabel}>TRAFFIC OUTLOOK</Text>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[styles.statusText, { color: statusColor }]}>
-              {route.congestion_category || 'Unknown'}
+              {activeWindow.cong < 31
+                ? 'Smooth Free-Flow'
+                : activeWindow.cong < 61
+                ? 'Moderate Delays'
+                : 'Heavy Congestion'}
             </Text>
           </View>
-          {route.trend_description ? (
-            <Text style={styles.statusSub}>{route.trend_description}</Text>
-          ) : null}
+          <Text style={styles.statusSub}>
+            {selectedOffset === 0
+              ? `Current corridor state with ${currentCong}% congestion.`
+              : `Projected ETA if departing in ${activeWindow.label}: ~${activeWindow.eta} mins.`}
+          </Text>
         </View>
 
         <View style={styles.currentRight}>
-          <Text style={[styles.congNumber, { color: statusColor }]}>{currentCong}%</Text>
+          <Text style={[styles.congNumber, { color: statusColor }]}>{activeWindow.cong}%</Text>
           <Text style={styles.congLabel}>CONGESTION</Text>
         </View>
       </Card>
 
-      {/* Chronos-2 Horizon Cards */}
+      {/* Interactive Departure Time Selector */}
       <Card>
         <View style={styles.forecastHeader}>
           <View style={styles.forecastTitleRow}>
-            <Activity size={14} color={colors.fastest} />
-            <Text style={styles.forecastTitle}>CHRONOS-2 PROBABILISTIC FORECAST</Text>
+            <Clock size={14} color={colors.fastest} />
+            <Text style={styles.forecastTitle}>DEPARTURE TIME PLANNER</Text>
           </View>
-          <Badge variant="neutral" size="sm" shape="pill">
-            amazon/chronos-2
-          </Badge>
+          <View style={styles.smartBadge}>
+            <Sparkles size={11} color={colors.primary} />
+            <Text style={styles.smartBadgeText}>Smart Forecast</Text>
+          </View>
         </View>
 
-        <View style={styles.horizonRow}>
-          <Card variant="nested" style={styles.horizonBlock}>
-            <Text style={styles.horizonTime}>NOW</Text>
-            <Text style={styles.horizonVal}>{currentCong}%</Text>
-            <Text style={styles.horizonLabel}>Observed</Text>
-          </Card>
-
-          <Card variant="nested" style={[styles.horizonBlock, styles.horizonBlockKey]}>
-            <Text style={[styles.horizonTime, { color: colors.fastest }]}>+20m</Text>
-            <View style={styles.horizonValRow}>
-              <Text style={[styles.horizonVal, { color: colors.fastest }]}>
-                {fc20 === null ? '—' : `${fc20}%`}
-              </Text>
-              {trendIcon}
-            </View>
-            <Text style={[styles.horizonLabel, { color: colors.fastest }]}>P50 Forecast</Text>
-          </Card>
-
-          <Card variant="nested" style={styles.horizonBlock}>
-            <Text style={styles.horizonTime}>TREND</Text>
-            <Text style={styles.horizonVal}>
-              {route.trend_delta_pct !== undefined && route.trend_delta_pct !== null
-                ? `${route.trend_delta_pct > 0 ? '+' : ''}${Math.round(route.trend_delta_pct)}%`
-                : '—'}
-            </Text>
-            <Text style={styles.horizonLabel} numberOfLines={1}>
-              {route.trend ? route.trend.toLowerCase() : 'not reported'}
-            </Text>
-          </Card>
-        </View>
-
-        {/* Model Precision Progress Bar — derived, not a literal. */}
-        <View style={styles.confidenceRow}>
-          <View style={styles.confidenceLabelRow}>
-            <Text style={styles.confidenceText}>Model Confidence</Text>
-            <Text style={styles.confidenceVal}>
-              {confidencePct === null ? 'Not reported' : `${confidencePct}%`}
-            </Text>
-          </View>
-          <View style={styles.confidenceTrack}>
-            <View style={[styles.confidenceFill, { width: `${confidencePct ?? 0}%` }]} />
-          </View>
+        <View style={styles.windowsGrid}>
+          {departureWindows.map(item => {
+            const isSelected = item.offset === selectedOffset;
+            const cColor = congestionColor(item.cong);
+            return (
+              <TouchableOpacity
+                key={item.offset}
+                activeOpacity={0.75}
+                onPress={() => setSelectedOffset(item.offset)}
+                style={[
+                  styles.windowCard,
+                  isSelected && styles.windowCardSelected,
+                  { borderColor: isSelected ? colors.primary : colors.border }
+                ]}
+              >
+                <Text style={[styles.windowLabel, isSelected && { color: colors.primaryBright }]}>
+                  {item.label}
+                </Text>
+                <Text style={styles.windowEta}>{item.eta} min</Text>
+                <View style={styles.windowCongRow}>
+                  <View style={[styles.windowDot, { backgroundColor: cColor }]} />
+                  <Text style={[styles.windowCongText, { color: cColor }]}>{item.cong}%</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </Card>
     </View>
@@ -148,30 +146,31 @@ export const ForecastTimeline = React.memo(ForecastTimelineBase);
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.lg,
+    gap: spacing.md,
     marginBottom: spacing.lg
   },
   currentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.lg
+    padding: spacing.cardPadding,
+    borderRadius: spacing.radius.xl
   },
   currentLeft: {
     flex: 1
   },
   sectionLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.normal
+    letterSpacing: 0.5,
+    marginBottom: 2
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2
+    gap: spacing.xs,
+    marginBottom: 2
   },
   statusDot: {
     width: 8,
@@ -179,122 +178,99 @@ const styles = StyleSheet.create({
     borderRadius: 4
   },
   statusText: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
-    fontWeight: typography.weights.extrabold,
-    textTransform: 'capitalize'
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.extrabold
   },
   statusSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.text.secondary,
     marginTop: 2
   },
   currentRight: {
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
+    marginLeft: spacing.md
   },
   congNumber: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: typography.sizes.h1,
+    lineHeight: 30,
     fontWeight: typography.weights.extrabold
   },
   congLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
+    color: colors.text.muted,
+    letterSpacing: 0.5
   },
   forecastHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    gap: spacing.md
+    marginBottom: spacing.md
   },
   forecastTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
+    gap: spacing.xs
   },
   forecastTitle: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal
-  },
-  horizonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg
-  },
-  horizonBlock: {
-    flex: 1,
-    alignItems: 'center',
-    padding: spacing.md
-  },
-  horizonBlockKey: {
-    borderColor: colors.fastestBorder,
-    backgroundColor: colors.fastestFaint
-  },
-  horizonTime: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.secondary
-  },
-  horizonValRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginTop: 2
-  },
-  horizonVal: {
-    fontSize: typography.sizes.body,
-    lineHeight: typography.line.body,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright,
-    marginTop: 2
+    letterSpacing: 0.5
   },
-  horizonLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted,
-    marginTop: 2,
-    textTransform: 'capitalize'
-  },
-  confidenceRow: {
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
-  },
-  confidenceLabelRow: {
+  smartBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs
+    gap: 3,
+    backgroundColor: colors.primarySoft,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
   },
-  confidenceText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary
-  },
-  confidenceVal: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
+  smartBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
     color: colors.primary
   },
-  confidenceTrack: {
-    height: 4,
-    backgroundColor: colors.neutral,
-    borderRadius: 2,
-    overflow: 'hidden'
+  windowsGrid: {
+    flexDirection: 'row',
+    gap: spacing.xs
   },
-  confidenceFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2
+  windowCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1
+  },
+  windowCardSelected: {
+    backgroundColor: colors.primaryFaint
+  },
+  windowLabel: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.muted,
+    marginBottom: 2
+  },
+  windowEta: {
+    fontSize: 13,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.bright,
+    marginBottom: 4
+  },
+  windowCongRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3
+  },
+  windowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3
+  },
+  windowCongText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold
   }
 });

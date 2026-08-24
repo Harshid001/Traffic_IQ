@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import {
   Navigation2,
   ShieldCheck,
@@ -9,7 +9,10 @@ import {
   Pause,
   FastForward,
   AlertTriangle,
-  GripHorizontal
+  GripHorizontal,
+  BellRing,
+  Clock,
+  Sparkles
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { normalizeReliability } from '../../utils/format';
@@ -22,6 +25,7 @@ const SPEED_STEPS = [1, 2, 5];
 const CollapsedRouteSheetBase: React.FC = () => {
   const routingData = useNavigationStore(s => s.routingData);
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
+  const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
   const startNavigation = useNavigationStore(s => s.startNavigation);
   const isNavigating = useNavigationStore(s => s.isNavigating);
   const isStartingNavigation = useNavigationStore(s => s.isStartingNavigation);
@@ -35,13 +39,13 @@ const CollapsedRouteSheetBase: React.FC = () => {
   const arrivalTime = useNavigationStore(s => s.arrivalTime);
   const toggleBottomSheet = useNavigationStore(s => s.toggleBottomSheet);
   const progressPct = useNavigationStore(s => s.progressPct);
+  const triggerSimulatedAlert = useNavigationStore(s => s.triggerSimulatedAlert);
 
   const [navStarted, setNavStarted] = useState(false);
 
   const routes = routingData?.routes ?? [];
   const selectedRoute = routes.find(r => r.id === selectedRouteId) || routes[0];
 
-  // Reliability may arrive as a decimal fraction (0.64) or a percentage (64).
   const reliabilityPct = normalizeReliability(selectedRoute?.reliability?.reliability_score);
 
   const handleStartNavigation = useCallback(async () => {
@@ -50,7 +54,6 @@ const CollapsedRouteSheetBase: React.FC = () => {
       await startNavigation();
       setNavStarted(true);
     } catch {
-      // The store already recorded the message in `navigationError`.
       setNavStarted(false);
     }
   }, [startNavigation]);
@@ -66,10 +69,10 @@ const CollapsedRouteSheetBase: React.FC = () => {
     const progressWhole = Math.round(progressPct * 100);
     return (
       <View style={styles.sheet}>
-        {/* Progress header */}
+        {/* Progress Header */}
         <View style={styles.progressRow}>
-          <Text style={styles.progressText}>PROGRESS ({progressWhole}%)</Text>
-          <Text style={styles.arriveText}>ARRIVE BY {arrivalTime}</Text>
+          <Text style={styles.progressText}>TRIP PROGRESS ({progressWhole}%)</Text>
+          <Text style={styles.arriveText}>EST. ARRIVAL {arrivalTime}</Text>
         </View>
 
         {/* Progress Bar Track */}
@@ -94,11 +97,11 @@ const CollapsedRouteSheetBase: React.FC = () => {
         <View style={styles.navBottomRow}>
           {/* ETA & Distance Summary */}
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={toggleBottomSheet}
             style={styles.etaCol}
             accessibilityRole="button"
-            accessibilityLabel={`${remainingEtaMin} minutes and ${remainingDistanceKm} kilometres remaining on ${selectedRoute.name}. Tap for trip details.`}
+            accessibilityLabel={`${remainingEtaMin} minutes and ${remainingDistanceKm} km remaining.`}
           >
             <View style={styles.etaRow}>
               <Text style={styles.etaBig}>
@@ -114,32 +117,42 @@ const CollapsedRouteSheetBase: React.FC = () => {
             </View>
           </TouchableOpacity>
 
-          {/* Simulation Controls */}
+          {/* In-Drive Simulation Tools */}
           <View style={styles.playbackRow}>
             <TouchableOpacity
-              activeOpacity={0.7}
+              activeOpacity={0.75}
+              onPress={() => triggerSimulatedAlert()}
+              style={styles.alertTriggerBtn}
+              hitSlop={spacing.hitSlop}
+              accessibilityRole="button"
+              accessibilityLabel="Trigger proactive traffic alert"
+            >
+              <BellRing size={15} color={colors.fastest} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.75}
               onPress={cycleSpeed}
               style={styles.speedToggle}
               hitSlop={spacing.hitSlop}
               accessibilityRole="button"
-              accessibilityLabel={`Simulation speed ${simulationSpeed} times. Tap to change.`}
+              accessibilityLabel={`Simulation speed ${simulationSpeed}x`}
             >
               <FastForward size={14} color={colors.fastest} />
               <Text style={styles.speedToggleText}>{simulationSpeed}x</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={toggleDriveSimulation}
               style={styles.playButton}
               accessibilityRole="button"
-              accessibilityLabel={isSimulatingDrive ? 'Pause drive simulation' : 'Resume drive simulation'}
-              accessibilityState={{ selected: isSimulatingDrive }}
+              accessibilityLabel={isSimulatingDrive ? 'Pause drive' : 'Resume drive'}
             >
               {isSimulatingDrive ? (
-                <Pause size={20} color={colors.text.onAccent} strokeWidth={3} />
+                <Pause size={18} color={colors.text.onAccent} strokeWidth={3} />
               ) : (
-                <Play size={20} color={colors.text.onAccent} strokeWidth={3} />
+                <Play size={18} color={colors.text.onAccent} strokeWidth={3} />
               )}
             </TouchableOpacity>
           </View>
@@ -153,10 +166,9 @@ const CollapsedRouteSheetBase: React.FC = () => {
 
   return (
     <View style={styles.sheet}>
-      {/* Drag handle. It is a tap target, so it uses a grip icon rather than a
-          bar that implies a swipe gesture the sheet does not support. */}
+      {/* Drag Handle & Expand Pill */}
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         onPress={toggleBottomSheet}
         style={styles.dragBarContainer}
         accessibilityRole="button"
@@ -165,13 +177,54 @@ const CollapsedRouteSheetBase: React.FC = () => {
         <GripHorizontal size={20} color={colors.borderStrong} />
       </TouchableOpacity>
 
+      {/* Interactive Candidate Routes Selector Bar */}
+      {routes.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.routeSelectorScroll}
+        >
+          {routes.map(r => {
+            const isSelected = r.id === selectedRoute.id;
+            return (
+              <TouchableOpacity
+                key={r.id}
+                activeOpacity={0.75}
+                onPress={() => setSelectedRouteId(r.id)}
+                style={[styles.routeSelectChip, isSelected && styles.routeSelectChipActive]}
+              >
+                <View style={styles.routeSelectChipHeader}>
+                  {r.is_best ? (
+                    <ShieldCheck size={11} color={isSelected ? colors.primary : colors.text.muted} />
+                  ) : r.is_fastest ? (
+                    <Zap size={11} color={isSelected ? colors.fastest : colors.text.muted} />
+                  ) : null}
+                  <Text
+                    style={[
+                      styles.routeSelectChipLabel,
+                      isSelected && { color: r.is_best ? colors.primary : colors.fastest }
+                    ]}
+                  >
+                    {r.is_best ? 'RECOMMENDED' : r.is_fastest ? 'FASTEST' : 'ALT'}
+                  </Text>
+                </View>
+                <Text style={[styles.routeSelectChipEta, isSelected && styles.routeSelectChipEtaActive]}>
+                  {r.predicted_eta_p50} min <Text style={styles.routeSelectChipDist}>• {r.distance_km}km</Text>
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Primary Route Summary */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryInfo}>
           <View style={styles.badgeRow}>
             {isBest ? (
               <View style={styles.bestBadge}>
                 <ShieldCheck size={12} color={colors.primary} />
-                <Text style={styles.bestBadgeText}>Best For You</Text>
+                <Text style={styles.bestBadgeText}>Smart Recommendation</Text>
               </View>
             ) : isFastest ? (
               <View style={styles.fastestBadge}>
@@ -180,7 +233,7 @@ const CollapsedRouteSheetBase: React.FC = () => {
               </View>
             ) : (
               <View style={styles.altBadge}>
-                <Text style={styles.altBadgeText}>Alternative</Text>
+                <Text style={styles.altBadgeText}>Alternative Route</Text>
               </View>
             )}
             <Text style={styles.tollText}>Toll: ₹{selectedRoute.toll_cost}</Text>
@@ -195,27 +248,24 @@ const CollapsedRouteSheetBase: React.FC = () => {
 
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>
-              Traffic: <Text style={styles.metaHighlight}>{selectedRoute.congestion_category}</Text>
+              Live Traffic: <Text style={styles.metaHighlight}>{selectedRoute.congestion_category}</Text>
             </Text>
             <Text style={styles.metaDot}>•</Text>
             <Text style={styles.metaText}>
-              Reliability:{' '}
-              <Text style={styles.metaVal}>
-                {selectedRoute.reliability ? `${reliabilityPct}%` : '—'}
-              </Text>
+              Reliability: <Text style={styles.metaVal}>{reliabilityPct}% on-time</Text>
             </Text>
           </View>
         </View>
 
         <TouchableOpacity
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           onPress={toggleBottomSheet}
           style={styles.expandButton}
           hitSlop={spacing.hitSlop}
           accessibilityRole="button"
           accessibilityLabel="Expand route details"
         >
-          <ChevronUp size={20} color={colors.text.secondary} />
+          <ChevronUp size={18} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -228,30 +278,27 @@ const CollapsedRouteSheetBase: React.FC = () => {
         </View>
       )}
 
-      {/* Large Start Navigation Button */}
+      {/* Large Glowing Start Navigation Action Button */}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={handleStartNavigation}
         disabled={isStartingNavigation}
         style={[styles.startButton, isStartingNavigation && styles.startButtonLoading]}
         accessibilityRole="button"
-        accessibilityLabel={
-          isStartingNavigation ? 'Starting navigation' : `Start navigation on ${selectedRoute.name}`
-        }
-        accessibilityState={{ disabled: isStartingNavigation, busy: isStartingNavigation }}
+        accessibilityLabel={`Start navigation on ${selectedRoute.name}`}
       >
         {isStartingNavigation ? (
           <ActivityIndicator size="small" color={colors.text.onAccent} />
         ) : (
           <Navigation2
-            size={18}
+            size={20}
             color={colors.text.onAccent}
             strokeWidth={3}
             style={{ transform: [{ rotate: '45deg' }] }}
           />
         )}
         <Text style={styles.startButtonText}>
-          {isStartingNavigation ? 'Starting...' : navStarted ? 'Navigation Started' : 'Start Navigation'}
+          {isStartingNavigation ? 'Initializing Trip...' : navStarted ? 'Navigation Started' : 'Start Navigation'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -264,23 +311,71 @@ const styles = StyleSheet.create({
   sheet: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderStrong,
     borderTopLeftRadius: spacing.radius.xxl,
     borderTopRightRadius: spacing.radius.xxl,
     padding: spacing.cardPadding,
-    paddingBottom: spacing.xxl
+    paddingBottom: spacing.xxl,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16
   },
   dragBarContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 32,
+    height: 24,
     marginBottom: spacing.xs
+  },
+  routeSelectorScroll: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    paddingVertical: 2
+  },
+  routeSelectChip: {
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    minWidth: 110
+  },
+  routeSelectChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint
+  },
+  routeSelectChipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2
+  },
+  routeSelectChipLabel: {
+    fontSize: 9,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.muted,
+    letterSpacing: 0.5
+  },
+  routeSelectChipEta: {
+    fontSize: 12,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
+  },
+  routeSelectChipEtaActive: {
+    color: colors.text.bright
+  },
+  routeSelectChipDist: {
+    fontSize: 10,
+    fontWeight: typography.weights.regular,
+    color: colors.text.muted
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     gap: spacing.md
   },
   summaryInfo: {
@@ -289,13 +384,13 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.xs
   },
   bestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: colors.primarySoft,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
@@ -304,16 +399,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   bestBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   fastestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: colors.fastestSoft,
     borderWidth: 1,
     borderColor: colors.fastestBorder,
@@ -322,11 +415,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   fastestBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.fastest
   },
   altBadge: {
     backgroundColor: colors.neutral,
@@ -335,70 +426,62 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   altBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.secondary
   },
   tollText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    fontWeight: typography.weights.semibold
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.muted
   },
   etaRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: spacing.md,
-    marginVertical: 2
+    marginBottom: spacing.xs
   },
   etaBig: {
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: typography.sizes.hero,
+    lineHeight: 38,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   etaUnit: {
-    fontSize: typography.sizes.caption,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+    fontSize: typography.sizes.h3,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary
   },
   distBig: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.body
+    fontSize: typography.sizes.h2,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2,
-    flexWrap: 'wrap'
+    gap: spacing.xs
   },
   metaText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: 11,
     color: colors.text.secondary
   },
   metaHighlight: {
-    color: colors.primary,
-    fontWeight: typography.weights.bold,
-    textTransform: 'capitalize'
-  },
-  metaVal: {
-    color: colors.text.bright,
+    color: colors.primaryBright,
     fontWeight: typography.weights.bold
   },
   metaDot: {
-    fontSize: typography.sizes.caption,
-    color: colors.text.dimmed
+    color: colors.text.muted,
+    fontSize: 11
+  },
+  metaVal: {
+    color: colors.text.bright,
+    fontWeight: typography.weights.semibold
   },
   expandButton: {
-    width: 38,
-    height: 38,
-    borderRadius: spacing.radius.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -406,53 +489,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   startButton: {
-    backgroundColor: colors.primary,
-    borderRadius: spacing.radius.xl,
-    minHeight: spacing.touchTargetComfortable,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.radius.xl,
+    paddingVertical: spacing.md,
+    minHeight: 52,
+    gap: spacing.sm,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 10
   },
   startButtonLoading: {
-    opacity: 0.75
+    opacity: 0.8
   },
   startButtonText: {
-    fontSize: typography.sizes.h3,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.extrabold,
     color: colors.text.onAccent,
-    letterSpacing: typography.tracking.normal,
-    textTransform: 'uppercase'
+    letterSpacing: 0.5
   },
   progressRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    gap: spacing.md
+    alignItems: 'center',
+    marginBottom: spacing.xs
   },
   progressText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
+    color: colors.primary,
+    letterSpacing: 0.5
   },
   arriveText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.muted
   },
   progressTrack: {
-    height: 5,
-    backgroundColor: colors.neutral,
+    height: 6,
+    backgroundColor: colors.card,
     borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   progressFill: {
     height: '100%',
@@ -462,8 +543,7 @@ const styles = StyleSheet.create({
   navBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md
+    justifyContent: 'space-between'
   },
   etaCol: {
     flex: 1
@@ -471,8 +551,7 @@ const styles = StyleSheet.create({
   routePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2
+    gap: 4
   },
   routeDot: {
     width: 6,
@@ -481,63 +560,65 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary
   },
   routeName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: 11,
     color: colors.text.secondary,
-    fontWeight: typography.weights.medium,
-    flexShrink: 1
+    fontWeight: typography.weights.medium
   },
   playbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md
+    gap: spacing.xs
+  },
+  alertTriggerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.fastestFaint,
+    borderWidth: 1,
+    borderColor: colors.fastestBorder,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   speedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 2,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    paddingHorizontal: spacing.lg,
-    minHeight: 36,
-    justifyContent: 'center'
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.sm,
+    height: 36
   },
   speedToggleText: {
-    fontSize: typography.sizes.caption,
-    fontWeight: typography.weights.extrabold,
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
     color: colors.fastest
   },
   playButton: {
-    width: spacing.touchTargetMin,
-    height: spacing.touchTargetMin,
-    borderRadius: spacing.radius.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 8
+    shadowRadius: 6
   },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg
+    borderRadius: spacing.radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md
   },
   errorText: {
-    flex: 1,
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.dangerBright,
-    fontWeight: typography.weights.semibold
+    flex: 1
   }
 });

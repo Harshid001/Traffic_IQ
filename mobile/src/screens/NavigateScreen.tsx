@@ -7,9 +7,25 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
-  Pressable
+  Pressable,
+  TextInput
 } from 'react-native';
-import { Search, MapPin, Check, ChevronRight } from 'lucide-react-native';
+import {
+  Search,
+  MapPin,
+  Check,
+  ChevronRight,
+  Zap,
+  Coffee,
+  Car,
+  Utensils,
+  Home,
+  Briefcase,
+  Plane,
+  Train,
+  Layers,
+  Sparkles
+} from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { CockpitMap } from '../components/Map/CockpitMap';
 import { ManeuverHUD } from '../components/Map/ManeuverHUD';
@@ -26,6 +42,20 @@ import { useLayout } from '../theme/useLayout';
 /** Drive simulation tick interval. */
 const SIM_TICK_MS = 1200;
 
+const QUICK_POIS = [
+  { id: 'ev', label: 'EV Charging', icon: Zap, color: colors.poi.ev },
+  { id: 'coffee', label: 'Coffee & Cafe', icon: Coffee, color: colors.poi.coffee },
+  { id: 'parking', label: 'Parking Space', icon: Car, color: colors.poi.parking },
+  { id: 'food', label: 'Dine & Food', icon: Utensils, color: colors.poi.food }
+];
+
+const SHORTCUT_DESTINATIONS = [
+  { id: 'home', label: 'Home', sub: 'Navi Mumbai', corridorId: 'vashi-dadar', icon: Home },
+  { id: 'work', label: 'Office / Tech Park', sub: 'BKC, Mumbai', corridorId: 'thane-bkc', icon: Briefcase },
+  { id: 'airport', label: 'International Airport', sub: 'T2 Terminal', corridorId: 'andheri-nariman', icon: Plane },
+  { id: 'station', label: 'Central Station', sub: 'CSMT Mumbai', corridorId: 'andheri-nariman', icon: Train }
+];
+
 export const NavigateScreen: React.FC = () => {
   const isNavigating = useNavigationStore(s => s.isNavigating);
   const isSimulatingDrive = useNavigationStore(s => s.isSimulatingDrive);
@@ -38,15 +68,14 @@ export const NavigateScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedPoi, setSelectedPoi] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { dialogMaxWidth } = useLayout();
-
-  // The cold-start fetch lives in App.tsx; this screen no longer duplicates it.
 
   /** Active Drive Simulation Ticker Loop. */
   useEffect(() => {
     if (!isNavigating || !isSimulatingDrive) return;
     const interval = setInterval(() => {
-      // `stepSimulation` internally drops overlapping ticks.
       stepSimulation();
     }, SIM_TICK_MS);
     return () => clearInterval(interval);
@@ -56,73 +85,104 @@ export const NavigateScreen: React.FC = () => {
     (id: string) => {
       setSelectedCorridor(id);
       setPickerOpen(false);
+      setSearchQuery('');
     },
     [setSelectedCorridor]
   );
 
+  const togglePoi = useCallback((id: string) => {
+    setSelectedPoi(prev => (prev === id ? null : id));
+  }, []);
+
   const currentCorridor = getCorridor(selectedCorridor);
   const destinationLabel = routingData?.corridor_name || currentCorridor.name;
+
+  const filteredCorridors = CORRIDORS.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.city.toLowerCase().includes(q) || c.tag.toLowerCase().includes(q);
+  });
 
   return (
     <View style={styles.container}>
       {/*
-        Single top overlay stack. Everything that floats over the map lives here
-        in document order, so the HUD and the alert card stack vertically
-        instead of overlapping at fixed offsets.
+        Top Floating Overlay Stack:
+        Contains Destination Search, Shortcut POIs, Maneuver HUD, and Predictive Alerts.
       */}
       <View style={styles.overlayStack} pointerEvents="box-none">
         {!isNavigating && (
           <>
-            {/* Destination selector. This is a real control now — the previous
-                version looked like a search field but had no press handler. */}
+            {/* Interactive Destination Search Box */}
             <TouchableOpacity
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={() => setPickerOpen(true)}
               style={styles.searchBox}
               accessibilityRole="button"
-              accessibilityLabel={`Destination: ${destinationLabel}. Tap to choose a corridor.`}
+              accessibilityLabel={`Destination: ${destinationLabel}. Tap to change destination.`}
             >
-              <Search size={16} color={colors.primary} />
+              <View style={styles.searchIconRing}>
+                <Search size={16} color={colors.primaryBright} />
+              </View>
               <View style={styles.searchTextCol}>
-                <Text style={styles.searchLabel}>WHERE ARE YOU GOING?</Text>
+                <Text style={styles.searchLabel}>SEARCH DESTINATION OR ROUTE</Text>
                 <Text style={styles.searchVal} numberOfLines={1}>
                   {destinationLabel}
                 </Text>
               </View>
-              <ChevronRight size={16} color={colors.text.secondary} />
+              <View style={styles.searchActionPill}>
+                <Text style={styles.searchActionText}>Change</Text>
+                <ChevronRight size={14} color={colors.primary} />
+              </View>
             </TouchableOpacity>
 
-            {/* Quick Corridor Chips. The old fully-transparent "fade" overlay
-                is gone — it communicated nothing and blocked 32px of the row. */}
+            {/* Quick Destination Shortcuts (Home, Work, Airport) */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipsScroll}
             >
-              {CORRIDORS.map((corridor) => {
-                const isSelected = corridor.id === selectedCorridor;
-                const isBusy = isLoadingRoutes && isSelected;
+              {SHORTCUT_DESTINATIONS.map(item => {
+                const isSelected = selectedCorridor === item.corridorId;
+                const IconComponent = item.icon;
                 return (
                   <TouchableOpacity
-                    key={corridor.id}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedCorridor(corridor.id)}
-                    disabled={isLoadingRoutes}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: isSelected, busy: isBusy }}
-                    accessibilityLabel={corridor.shortLabel}
+                    key={item.id}
+                    activeOpacity={0.75}
+                    onPress={() => setSelectedCorridor(item.corridorId)}
+                    style={[styles.shortcutChip, isSelected && styles.shortcutChipSelected]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Navigate to ${item.label}`}
                   >
-                    {isBusy ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : (
-                      <MapPin
-                        size={12}
-                        color={isSelected ? colors.primary : colors.text.secondary}
-                      />
-                    )}
-                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {corridor.shortLabel}
+                    <IconComponent size={13} color={isSelected ? colors.primary : colors.text.secondary} />
+                    <Text style={[styles.shortcutText, isSelected && styles.shortcutTextSelected]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Quick POI Amenities on Route */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.poiScroll}
+            >
+              {QUICK_POIS.map(poi => {
+                const active = selectedPoi === poi.id;
+                const Icon = poi.icon;
+                return (
+                  <TouchableOpacity
+                    key={poi.id}
+                    activeOpacity={0.75}
+                    onPress={() => togglePoi(poi.id)}
+                    style={[styles.poiChip, active && { borderColor: poi.color, backgroundColor: colors.surface }]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: active }}
+                  >
+                    <Icon size={12} color={active ? poi.color : colors.text.muted} />
+                    <Text style={[styles.poiText, active && { color: colors.text.bright, fontWeight: '700' }]}>
+                      {poi.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -140,69 +200,106 @@ export const NavigateScreen: React.FC = () => {
           </>
         )}
 
-        {/* Driving Guidance HUD */}
+        {/* In-Drive Live Guidance HUD */}
         {isNavigating && <ManeuverHUD />}
 
-        {/* Proactive Road Alert, stacked below the HUD rather than over it. */}
+        {/* Proactive Real-Time Road Alert */}
         <PredictiveAlertCard />
       </View>
 
       {/* Lockscreen Notification Simulator Modal */}
       <LockScreenAlertModal />
 
-      {/* Dominant Map Canvas */}
+      {/* Interactive Map Canvas */}
       <View style={styles.mapWrapper}>
         <CockpitMap />
       </View>
 
-      {/* Bottom Sheet Drawer */}
+      {/* Bottom Sheet Route Selector & Controls */}
       <BottomSheetContainer />
 
-            {/* Corridor picker */}
+      {/* Destination & Corridor Picker Modal */}
       <Modal
         visible={pickerOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setPickerOpen(false)}
+        onRequestClose={() => {
+          setPickerOpen(false);
+          setSearchQuery('');
+        }}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setPickerOpen(false)}
+          onPress={() => {
+            setPickerOpen(false);
+            setSearchQuery('');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Close destination picker"
         >
-          <Pressable style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
+          <Pressable
+            style={[styles.modalContent, { maxWidth: dialogMaxWidth }]}
+            onPress={e => e.stopPropagation()}
+          >
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalHeader}>WHERE ARE YOU GOING?</Text>
-              <Text style={styles.modalSubHeader}>Curated Benchmark Corridors</Text>
+              <View>
+                <Text style={styles.modalHeader}>CHOOSE DESTINATION CORRIDOR</Text>
+                <Text style={styles.modalSubHeader}>Live traffic optimization ready</Text>
+              </View>
+              <View style={styles.aiBadge}>
+                <Sparkles size={12} color={colors.primary} />
+                <Text style={styles.aiBadgeText}>Smart Nav</Text>
+              </View>
             </View>
-            {CORRIDORS.map((corridor) => {
-              const isSelected = corridor.id === selectedCorridor;
-              return (
-                <TouchableOpacity
-                  key={corridor.id}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectCorridor(corridor.id)}
-                  style={[styles.pickerItem, isSelected && styles.pickerItemSelected]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: isSelected }}
-                  accessibilityLabel={`${corridor.name}, ${corridor.city}, ${corridor.tag}`}
-                >
-                  <View style={styles.pickerTextCol}>
-                    <View style={styles.pickerTitleRow}>
-                      <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
-                        {corridor.name}
-                      </Text>
-                      <View style={styles.pickerTag}>
-                        <Text style={styles.pickerTagText}>{corridor.tag}</Text>
-                      </View>
+
+            {/* Search Filter Box */}
+            <View style={styles.filterBox}>
+              <Search size={15} color={colors.text.muted} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Type highway, city or route name..."
+                placeholderTextColor={colors.text.dimmed}
+                style={styles.filterInput}
+                autoFocus
+              />
+            </View>
+
+            <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+              {filteredCorridors.map(corridor => {
+                const isSelected = corridor.id === selectedCorridor;
+                return (
+                  <TouchableOpacity
+                    key={corridor.id}
+                    activeOpacity={0.75}
+                    onPress={() => handleSelectCorridor(corridor.id)}
+                    style={[styles.pickerItem, isSelected && styles.pickerItemSelected]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                  >
+                    <View style={styles.pickerIconWrapper}>
+                      <MapPin size={16} color={isSelected ? colors.primary : colors.text.secondary} />
                     </View>
-                    <Text style={styles.pickerCity}>{corridor.city}</Text>
-                  </View>
-                  {isSelected && <Check size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
+                    <View style={styles.pickerTextCol}>
+                      <View style={styles.pickerTitleRow}>
+                        <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
+                          {corridor.name}
+                        </Text>
+                        <View style={styles.pickerTag}>
+                          <Text style={styles.pickerTagText}>{corridor.tag}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.pickerCity}>{corridor.city} • High-capacity route</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.pickerCheck}>
+                        <Check size={14} color={colors.text.onAccent} strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -218,73 +315,116 @@ const styles = StyleSheet.create({
   },
   overlayStack: {
     position: 'absolute',
-    top: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
     zIndex: 35,
-    gap: spacing.md
+    gap: spacing.sm
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.overlaySurface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.lg,
-    paddingHorizontal: spacing.lg,
-    minHeight: spacing.touchTargetComfortable,
+    borderColor: colors.borderStrong,
+    borderRadius: spacing.radius.xl,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
     gap: spacing.md,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12
+  },
+  searchIconRing: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   searchTextCol: {
     flex: 1
   },
   searchLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
+    lineHeight: 11,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.normal
+    letterSpacing: 0.5
   },
   searchVal: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
+    fontSize: typography.sizes.body,
+    lineHeight: 18,
     fontWeight: typography.weights.bold,
-    color: colors.text.primary
+    color: colors.text.bright
+  },
+  searchActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    gap: 2
+  },
+  searchActionText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   chipsScroll: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingVertical: 2
   },
-  chip: {
+  shortcutChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.overlaySurface,
+    gap: 5,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: spacing.radius.pill,
-    paddingHorizontal: spacing.lg,
-    minHeight: 38,
+    paddingHorizontal: spacing.md,
+    height: 32,
     justifyContent: 'center'
   },
-  chipSelected: {
+  shortcutChipSelected: {
     backgroundColor: colors.primarySoft,
     borderColor: colors.primaryBorder
   },
-  chipText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+  shortcutText: {
+    fontSize: 11,
     fontWeight: typography.weights.semibold,
     color: colors.text.secondary
   },
-  chipTextSelected: {
-    color: colors.primary,
+  shortcutTextSelected: {
+    color: colors.primaryBright,
     fontWeight: typography.weights.bold
+  },
+  poiScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: 2
+  },
+  poiChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.md,
+    height: 28,
+    justifyContent: 'center'
+  },
+  poiText: {
+    fontSize: 10,
+    fontWeight: typography.weights.medium,
+    color: colors.text.muted
   },
   mapWrapper: {
     flex: 1,
@@ -300,47 +440,93 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: spacing.radius.xl,
+    borderRadius: spacing.radius.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.cardPadding
+    borderColor: colors.borderStrong,
+    padding: spacing.cardPaddingLg,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20
   },
   modalHeaderRow: {
-    marginBottom: spacing.lg
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md
   },
   modalHeader: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: typography.sizes.label,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted,
-    letterSpacing: typography.tracking.wide
+    color: colors.text.bright,
+    letterSpacing: 0.5
   },
   modalSubHeader: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.primary,
-    fontWeight: typography.weights.semibold,
+    fontSize: typography.sizes.caption,
+    color: colors.text.secondary,
     marginTop: 2
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    gap: 3
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
+  },
+  filterBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.lg,
+    paddingHorizontal: spacing.md,
+    height: 40,
+    marginBottom: spacing.md,
+    gap: spacing.sm
+  },
+  filterInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: typography.sizes.body
   },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
-    borderRadius: spacing.radius.md,
+    padding: spacing.md,
+    minHeight: spacing.touchTargetComfortable,
+    borderRadius: spacing.radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.md,
-    backgroundColor: colors.card
+    marginBottom: spacing.sm,
+    backgroundColor: colors.card,
+    gap: spacing.md
   },
   pickerItemSelected: {
-    borderColor: colors.primaryBorder,
+    borderColor: colors.primary,
     backgroundColor: colors.primaryFaint
   },
+  pickerIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
+  },
   pickerTextCol: {
-    flex: 1,
-    paddingRight: spacing.md
+    flex: 1
   },
   pickerTitleRow: {
     flexDirection: 'row',
@@ -349,33 +535,36 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   pickerTitle: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
     flex: 1
   },
   pickerTag: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryBorderSoft,
+    backgroundColor: colors.neutral,
     borderRadius: spacing.radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 1
   },
   pickerTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.bold,
-    color: colors.primary
+    color: colors.text.secondary
   },
   pickerTitleSelected: {
     color: colors.primary
   },
   pickerCity: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.caption,
+    color: colors.text.muted,
     marginTop: 2
+  },
+  pickerCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center'
   }
 });

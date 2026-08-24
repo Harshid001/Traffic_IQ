@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import {
   ArrowUp,
   CornerUpRight,
@@ -9,7 +9,12 @@ import {
   MapPin,
   Volume2,
   VolumeX,
-  X
+  X,
+  AlertTriangle,
+  Radio,
+  ShieldAlert,
+  Flame,
+  Check
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
@@ -17,13 +22,13 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useLayout } from '../../theme/useLayout';
 
-/**
- * In-drive guidance banner.
- *
- * This component no longer positions itself absolutely; `NavigateScreen` owns
- * the top overlay stack so the HUD and the predictive alert card cannot occupy
- * the same coordinates.
- */
+const HAZARD_OPTIONS = [
+  { id: 'jam', label: 'Heavy Traffic Jam', icon: Flame, color: colors.hazard.jam },
+  { id: 'police', label: 'Speed Camera / Police', icon: Radio, color: colors.hazard.police },
+  { id: 'hazard', label: 'Road Hazard / Object', icon: AlertTriangle, color: colors.hazard.hazard },
+  { id: 'work', label: 'Construction / Roadwork', icon: ShieldAlert, color: colors.hazard.work }
+];
+
 const ManeuverHUDBase: React.FC = () => {
   const currentManeuver = useNavigationStore(s => s.currentManeuver);
   const currentSpeedKmh = useNavigationStore(s => s.currentSpeedKmh);
@@ -32,10 +37,13 @@ const ManeuverHUDBase: React.FC = () => {
   const toggleMute = useNavigationStore(s => s.toggleMute);
   const stopNavigation = useNavigationStore(s => s.stopNavigation);
   const upcomingSegment = useNavigationStore(s => s.upcomingSegment);
-  const { labelMaxWidth } = useLayout();
+  const { labelMaxWidth, dialogMaxWidth } = useLayout();
+
+  const [hazardModalOpen, setHazardModalOpen] = useState(false);
+  const [reportedHazard, setReportedHazard] = useState<string | null>(null);
 
   const renderManeuverIcon = useCallback(() => {
-    const iconProps = { size: 28, color: colors.primary, strokeWidth: 2.5 } as const;
+    const iconProps = { size: 28, color: colors.primaryBright, strokeWidth: 2.6 } as const;
     switch (currentManeuver?.type) {
       case 'turn-right':
         return <CornerUpRight {...iconProps} />;
@@ -52,6 +60,14 @@ const ManeuverHUDBase: React.FC = () => {
         return <ArrowUp {...iconProps} />;
     }
   }, [currentManeuver?.type]);
+
+  const handleReportHazard = (hazardId: string) => {
+    setReportedHazard(hazardId);
+    setTimeout(() => {
+      setReportedHazard(null);
+      setHazardModalOpen(false);
+    }, 1200);
+  };
 
   if (!currentManeuver) return null;
 
@@ -87,34 +103,44 @@ const ManeuverHUDBase: React.FC = () => {
           </View>
         </View>
 
-        {/* Action Controls. Both are 44x44 — these are the two most
-            safety-critical controls in the app and were previously 32x32
-            and completely unlabelled. */}
+        {/* Action Controls */}
         <View style={styles.actionCol}>
+          {/* Quick Hazard Report Button */}
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
+            onPress={() => setHazardModalOpen(true)}
+            style={[styles.actionButton, styles.hazardButton]}
+            hitSlop={spacing.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Report road hazard"
+          >
+            <AlertTriangle size={17} color={colors.warningBright} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.75}
             onPress={toggleMute}
             style={styles.actionButton}
             hitSlop={spacing.hitSlop}
             accessibilityRole="button"
             accessibilityLabel={isMuted ? 'Unmute voice guidance' : 'Mute voice guidance'}
-            accessibilityState={{ selected: isMuted }}
           >
             {isMuted ? (
-              <VolumeX size={18} color={colors.text.muted} />
+              <VolumeX size={17} color={colors.text.muted} />
             ) : (
-              <Volume2 size={18} color={colors.primary} />
+              <Volume2 size={17} color={colors.primary} />
             )}
           </TouchableOpacity>
+
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={stopNavigation}
             style={[styles.actionButton, styles.exitButton]}
             hitSlop={spacing.hitSlop}
             accessibilityRole="button"
-            accessibilityLabel="Exit navigation"
+            accessibilityLabel="End navigation trip"
           >
-            <X size={18} color={colors.danger} />
+            <X size={17} color={colors.dangerBright} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
       </View>
@@ -122,36 +148,110 @@ const ManeuverHUDBase: React.FC = () => {
       {/* Floating Speedometer & Upcoming Segment Strip */}
       <View style={styles.telemetryStrip}>
         <View style={styles.speedPill}>
-          <View>
+          <View style={styles.speedCol}>
             <Text style={styles.speedLabel}>SPEED</Text>
-            <Text
-              style={[styles.speedVal, isOverSpeed && styles.speedValOver]}
-              accessibilityLabel={`Current speed ${currentSpeedKmh} kilometres per hour${isOverSpeed ? ', over the limit' : ''}`}
-            >
+            <Text style={[styles.speedVal, isOverSpeed && styles.speedValOver]}>
               {currentSpeedKmh} <Text style={styles.speedUnit}>km/h</Text>
             </Text>
           </View>
           <View style={styles.speedDivider} />
-          <View style={styles.limitCircle} accessibilityLabel={`Speed limit ${speedLimitKmh}`}>
-            <Text style={styles.limitText}>{speedLimitKmh}</Text>
+          <View
+            style={[styles.limitCircle, isOverSpeed && styles.limitCircleOver]}
+            accessibilityLabel={`Speed limit ${speedLimitKmh}`}
+          >
+            <Text style={[styles.limitText, isOverSpeed && styles.limitTextOver]}>{speedLimitKmh}</Text>
           </View>
         </View>
 
         {upcomingSegment && (
           <View style={[styles.segmentPill, { maxWidth: labelMaxWidth }]}>
-            <View style={styles.segmentDot} />
+            <View
+              style={[
+                styles.segmentDot,
+                upcomingCongestion && upcomingCongestion > 60
+                  ? { backgroundColor: colors.danger }
+                  : upcomingCongestion && upcomingCongestion > 30
+                  ? { backgroundColor: colors.warning }
+                  : { backgroundColor: colors.primary }
+              ]}
+            />
             <View style={styles.segmentTextCol}>
               <Text style={styles.segmentLabel}>NEXT ROAD</Text>
               <Text style={styles.segmentName} numberOfLines={1}>
-                {upcomingSegment.name || 'Ahead'}
+                {upcomingSegment.name || 'Continuing ahead'}
               </Text>
             </View>
             {upcomingCongestion !== null && (
-              <Text style={styles.segmentCong}>{upcomingCongestion}%</Text>
+              <Text
+                style={[
+                  styles.segmentCong,
+                  upcomingCongestion > 60
+                    ? { color: colors.dangerBright }
+                    : upcomingCongestion > 30
+                    ? { color: colors.warningBright }
+                    : { color: colors.primaryBright }
+                ]}
+              >
+                {upcomingCongestion}%
+              </Text>
             )}
           </View>
         )}
       </View>
+
+      {/* Driver Hazard Reporting Modal */}
+      <Modal
+        visible={hazardModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setHazardModalOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setHazardModalOpen(false)}>
+          <Pressable
+            style={[styles.hazardModalContent, { maxWidth: dialogMaxWidth }]}
+            onPress={e => e.stopPropagation()}
+          >
+            <View style={styles.hazardHeaderRow}>
+              <View>
+                <Text style={styles.hazardTitle}>REPORT ROAD CONDITION</Text>
+                <Text style={styles.hazardSub}>Help fellow drivers with live incident updates</Text>
+              </View>
+              <TouchableOpacity onPress={() => setHazardModalOpen(false)} hitSlop={spacing.hitSlop}>
+                <X size={18} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.hazardGrid}>
+              {HAZARD_OPTIONS.map(opt => {
+                const Icon = opt.icon;
+                const isSuccess = reportedHazard === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    activeOpacity={0.8}
+                    onPress={() => handleReportHazard(opt.id)}
+                    style={[
+                      styles.hazardCard,
+                      isSuccess && { borderColor: colors.primary, backgroundColor: colors.primarySoft }
+                    ]}
+                  >
+                    <View style={[styles.hazardIconCircle, { backgroundColor: opt.color + '22' }]}>
+                      {isSuccess ? (
+                        <Check size={20} color={colors.primary} strokeWidth={3} />
+                      ) : (
+                        <Icon size={20} color={opt.color} />
+                      )}
+                    </View>
+                    <Text style={[styles.hazardCardText, isSuccess && { color: colors.primaryBright }]}>
+                      {isSuccess ? 'Reported!' : opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -160,38 +260,42 @@ export const ManeuverHUD = React.memo(ManeuverHUDBase);
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.md
+    gap: spacing.sm
   },
   hudBanner: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.primaryBorder,
     borderRadius: spacing.radius.xl,
-    padding: spacing.lg,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16
   },
   leftRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     flex: 1
   },
   iconBox: {
     width: 48,
     height: 48,
     borderRadius: spacing.radius.lg,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
     borderColor: colors.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.lg
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6
   },
   guidanceCol: {
     flex: 1
@@ -199,47 +303,52 @@ const styles = StyleSheet.create({
   distRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.sm,
+    marginBottom: 2
   },
   distText: {
     fontSize: typography.sizes.h2,
-    lineHeight: typography.line.h2,
+    lineHeight: 24,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.bright
+    color: colors.primaryBright
   },
   roadPill: {
-    backgroundColor: colors.neutral,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    backgroundColor: colors.card,
     borderRadius: spacing.radius.sm,
-    flexShrink: 1
-  },  roadText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.body,
-    fontWeight: typography.weights.semibold
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  roadText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
   },
   instructionText: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
-    color: colors.text.body,
-    fontWeight: typography.weights.medium,
-    marginTop: 2
+    fontSize: typography.sizes.body,
+    lineHeight: 18,
+    fontWeight: typography.weights.bold,
+    color: colors.text.bright
   },
   actionCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   actionButton: {
-    width: spacing.touchTargetMin,
-    height: spacing.touchTargetMin,
+    width: 40,
+    height: 40,
     borderRadius: spacing.radius.md,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  hazardButton: {
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warningBorder
   },
   exitButton: {
     backgroundColor: colors.dangerSoft,
@@ -248,98 +357,169 @@ const styles = StyleSheet.create({
   telemetryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md
+    gap: spacing.sm
   },
   speedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
     borderRadius: spacing.radius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    gap: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6
+  },
+  speedCol: {
+    alignItems: 'flex-start'
   },
   speedLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.muted
+    color: colors.text.muted,
+    letterSpacing: 0.5
   },
   speedVal: {
     fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
+    lineHeight: 20,
     fontWeight: typography.weights.extrabold,
-    color: colors.primary
+    color: colors.text.bright
   },
   speedValOver: {
-    color: colors.danger
+    color: colors.dangerBright
   },
   speedUnit: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+    fontSize: 10,
+    fontWeight: typography.weights.medium,
+    color: colors.text.muted
   },
   speedDivider: {
     width: 1,
-    height: 22,
-    backgroundColor: colors.borderStrong,
-    marginHorizontal: spacing.md
+    height: 24,
+    backgroundColor: colors.border
   },
   limitCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: colors.danger,
-    backgroundColor: colors.text.bright,
+    borderColor: colors.text.bright,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: '#FFF'
+  },
+  limitCircleOver: {
+    borderColor: colors.danger,
+    backgroundColor: '#FEE2E2'
   },
   limitText: {
-    fontSize: typography.sizes.micro,
+    fontSize: 11,
     fontWeight: typography.weights.extrabold,
-    color: colors.text.onLight
+    color: '#000'
+  },
+  limitTextOver: {
+    color: colors.danger
   },
   segmentPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.overlaySurface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
     borderRadius: spacing.radius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    flexShrink: 1
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    gap: spacing.sm
   },
   segmentDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-    marginRight: spacing.sm
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary
   },
   segmentTextCol: {
     flex: 1
   },
   segmentLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted
   },
   segmentName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.strong
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: typography.weights.bold,
+    color: colors.text.bright
   },
   segmentCong: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: 11,
+    fontWeight: typography.weights.extrabold
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl
+  },
+  hazardModalContent: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: spacing.cardPaddingLg,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.7,
+    shadowRadius: 24
+  },
+  hazardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg
+  },
+  hazardTitle: {
+    fontSize: typography.sizes.label,
     fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    marginLeft: spacing.sm
+    color: colors.text.bright,
+    letterSpacing: 0.5
+  },
+  hazardSub: {
+    fontSize: typography.sizes.caption,
+    color: colors.text.secondary,
+    marginTop: 2
+  },
+  hazardGrid: {
+    gap: spacing.sm
+  },
+  hazardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    gap: spacing.md
+  },
+  hazardIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  hazardCardText: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    flex: 1
   }
 });

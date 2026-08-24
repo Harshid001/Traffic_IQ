@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Clock, Sparkles, Star } from 'lucide-react-native';
+import { Clock, Sparkles, Star, Zap, Check } from 'lucide-react-native';
 import { useTrafficStore } from '../../store/trafficStore';
 import { useNavigationStore } from '../../store/navigationStore';
 import { ErrorState } from '../Common/ErrorState';
@@ -34,12 +34,6 @@ const WhatIfPlannerBase: React.FC = () => {
   }, [routes, loadWhatIfSimulation]);
 
   const scenarios = whatIfData?.departure_evaluations ?? [];
-
-  /**
-   * The optimal scenario is matched on `optimal_offset_minutes` — an exact
-   * numeric field. The previous `label.includes('30')` substring test also
-   * matched "+130 min" and any label containing the digits "30".
-   */
   const optimalOffset = whatIfData?.optimal_offset_minutes ?? null;
 
   const optimalScenario = useMemo(
@@ -50,7 +44,6 @@ const WhatIfPlannerBase: React.FC = () => {
     [scenarios, optimalOffset]
   );
 
-  /** Departure clock time derived from the server's optimal offset. */
   const departure = useMemo(() => {
     if (optimalOffset === null) return null;
     const at = new Date(Date.now() + optimalOffset * 60 * 1000);
@@ -67,29 +60,31 @@ const WhatIfPlannerBase: React.FC = () => {
     if (!routes || routes.length === 0) {
       return (
         <EmptyState
-          title="No routes to evaluate"
-          message="Calculate a corridor first to see departure options."
+          title="No route calculated"
+          message="Calculate a corridor first to evaluate best departure windows."
         />
       );
     }
     if (whatIfError) {
       return (
-        <ErrorState title="Departure forecast unavailable" message={whatIfError} onRetry={retry} />
+        <ErrorState title="Departure planner unavailable" message={whatIfError} onRetry={retry} />
       );
     }
     if (isLoadingWhatIf && scenarios.length === 0) {
-      return <LoadingState size="small" message="Projecting departure windows..." />;
+      return <LoadingState size="small" message="Calculating optimal departure schedule..." />;
     }
     if (scenarios.length === 0) {
       return (
         <EmptyState
           title="No departure windows returned"
-          message="The simulation completed without producing scenarios."
-          actionLabel="Re-run"
+          message="The schedule engine produced no alternate windows."
+          actionLabel="Recalculate"
           onAction={retry}
         />
       );
     }
+
+    const baselineEta = scenarios[0]?.lowest_eta_min ?? 30;
 
     return (
       <>
@@ -97,68 +92,60 @@ const WhatIfPlannerBase: React.FC = () => {
           {scenarios.map((sc, idx) => {
             const isSelected = selectedScenarioIndex === idx;
             const isOptimal = optimalOffset !== null && sc.offset_minutes === optimalOffset;
+            const diffMin = Math.round(baselineEta - sc.lowest_eta_min);
 
             return (
               <TouchableOpacity
-                key={`${sc.offset_minutes}-${sc.label}`}
-                activeOpacity={0.7}
+                key={`${sc.offset_minutes}-${idx}`}
+                activeOpacity={0.75}
                 onPress={() => setSelectedScenarioIndex(idx)}
                 style={[
-                  styles.scenarioItem,
-                  isOptimal && !isSelected && styles.scenarioItemOptimal,
-                  isSelected && styles.scenarioItemSelected
+                  styles.scenarioCard,
+                  isOptimal && styles.scenarioCardOptimal,
+                  isSelected && styles.scenarioCardSelected
                 ]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-                accessibilityLabel={`Depart ${sc.label}. Estimated ${sc.lowest_eta_min} minutes via ${sc.best_route_name}.${isOptimal ? ' Recommended departure.' : ''}`}
               >
                 <View style={styles.scenarioLeft}>
-                  <Text style={styles.scenarioLabel}>{sc.label}</Text>
-                  {isOptimal && (
-                    <View style={styles.optimalTag}>
-                      <Star size={10} color={colors.primary} />
-                      <Text style={styles.optimalTagText}>Best</Text>
-                    </View>
-                  )}
+                  <View style={styles.scenarioHeaderRow}>
+                    <Text style={[styles.offsetLabel, isOptimal && styles.offsetLabelOptimal]}>
+                      {sc.label}
+                    </Text>
+                    {isOptimal && (
+                      <View style={styles.optimalTag}>
+                        <Star size={10} color={colors.primary} />
+                        <Text style={styles.optimalTagText}>SMART PICK</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.scenarioEta}>
+                    Est. Duration: <Text style={styles.scenarioEtaVal}>{Math.round(sc.lowest_eta_min)} min</Text>
+                  </Text>
                 </View>
 
                 <View style={styles.scenarioRight}>
-                  <Text style={styles.scenarioEta}>
-                    {sc.lowest_eta_min} <Text style={styles.scenarioEtaUnit}>min</Text>
-                  </Text>
-                  <Text style={styles.scenarioRoute} numberOfLines={1}>
-                    {sc.best_route_name}
-                  </Text>
+                  {diffMin > 0 ? (
+                    <View style={styles.savingsPill}>
+                      <Zap size={11} color={colors.primary} />
+                      <Text style={styles.savingsText}>Saves {diffMin}m</Text>
+                    </View>
+                  ) : diffMin < 0 ? (
+                    <Text style={styles.delayText}>+{Math.abs(diffMin)}m delay</Text>
+                  ) : (
+                    <Text style={styles.baselineText}>Baseline</Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Recommended Departure Callout — only when the server named one. */}
-        {departure && (
-          <View style={styles.recommendationCard}>
-            <View style={styles.recHeader}>
-              <Text style={styles.recLabel}>RECOMMENDED DEPARTURE</Text>
-              {whatIfData?.potential_savings_min !== undefined &&
-                whatIfData.potential_savings_min > 0 && (
-                  <Text style={styles.recSavings}>
-                    Save ~{whatIfData.potential_savings_min} min
-                  </Text>
-                )}
-            </View>
-            <Text style={styles.recTime}>
-              {departure.time} <Text style={styles.recTimeSub}>({departure.relative})</Text>
+        {/* Highlight Banner */}
+        {optimalScenario && (
+          <View style={styles.recommendationBanner}>
+            <Sparkles size={16} color={colors.primaryBright} />
+            <Text style={styles.recommendationText}>
+              {whatIfData?.recommendation || `Leaving ${optimalScenario.label} saves you valuable travel time by avoiding peak bottleneck traffic!`}
             </Text>
-            {whatIfData?.recommendation && (
-              <View style={styles.recBodyRow}>
-                <Sparkles size={12} color={colors.primary} />
-                <Text style={styles.recBody}>{whatIfData.recommendation}</Text>
-              </View>
-            )}
-            {optimalScenario && (
-              <Text style={styles.recRoute}>Via {optimalScenario.best_route_name}</Text>
-            )}
           </View>
         )}
       </>
@@ -169,17 +156,21 @@ const WhatIfPlannerBase: React.FC = () => {
     <Card style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Clock size={14} color={colors.primary} />
-          <Text style={styles.title}>WHEN SHOULD I LEAVE?</Text>
+          <View style={styles.iconCircle}>
+            <Clock size={14} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={styles.title}>SMART DEPARTURE ASSISTANT</Text>
+            <Text style={styles.subTitle}>When should you hit the road for minimum traffic?</Text>
+          </View>
         </View>
-        <Badge variant="primary" size="sm">
-          Departure Forecast
-        </Badge>
-      </View>
 
-      <Text style={styles.subText}>
-        Chronos-2 projects future clearance windows to calculate your optimal departure time.
-      </Text>
+        {departure && (
+          <Badge variant="primary" size="sm">
+            Best: {departure.relative}
+          </Badge>
+        )}
+      </View>
 
       {renderBody()}
     </Card>
@@ -190,14 +181,15 @@ export const WhatIfPlanner = React.memo(WhatIfPlannerBase);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.lg
+    padding: spacing.cardPadding,
+    marginBottom: spacing.lg,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    gap: spacing.md
+    marginBottom: spacing.md
   },
   headerLeft: {
     flexDirection: 'row',
@@ -205,54 +197,63 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1
   },
-  title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.strong,
-    letterSpacing: typography.tracking.normal
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  subText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    marginBottom: spacing.lg
+  title: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.bright,
+    letterSpacing: 0.5
+  },
+  subTitle: {
+    fontSize: 10,
+    color: colors.text.muted,
+    marginTop: 1
   },
   scenarioList: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg
+    gap: spacing.xs,
+    marginBottom: spacing.md
   },
-  scenarioItem: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    minHeight: spacing.touchTargetMin,
+  scenarioCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  scenarioItemSelected: {
-    backgroundColor: colors.primaryFaint,
+  scenarioCardOptimal: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint
+  },
+  scenarioCardSelected: {
+    borderWidth: 1.5,
     borderColor: colors.primary
   },
-  scenarioItemOptimal: {
-    borderColor: colors.primaryBorder
-  },
   scenarioLeft: {
+    flex: 1
+  },
+  scenarioHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md
+    gap: spacing.xs,
+    marginBottom: 2
   },
-  scenarioLabel: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.primary,
-    minWidth: 52
+  offsetLabel: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary
+  },
+  offsetLabelOptimal: {
+    color: colors.primaryBright
   },
   optimalTag: {
     flexDirection: 'row',
@@ -260,90 +261,62 @@ const styles = StyleSheet.create({
     gap: 3,
     backgroundColor: colors.primarySoft,
     borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2
+    paddingHorizontal: 5,
+    paddingVertical: 1
   },
   optimalTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    textTransform: 'uppercase'
-  },
-  scenarioRight: {
-    alignItems: 'flex-end',
-    flexShrink: 1
-  },
-  scenarioEta: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.bright
-  },
-  scenarioEtaUnit: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
-  },
-  scenarioRoute: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.muted
-  },
-  recommendationCard: {
-    backgroundColor: colors.primaryFaint,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.lg,
-    padding: spacing.lg
-  },
-  recHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-    gap: spacing.md
-  },
-  recLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    letterSpacing: typography.tracking.normal
-  },
-  recSavings: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.primary
   },
-  recTime: {
-    fontSize: typography.sizes.h2,
-    lineHeight: typography.line.h2,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.bright
-  },
-  recTimeSub: {
-    fontSize: typography.sizes.caption,
-    fontWeight: typography.weights.regular,
+  scenarioEta: {
+    fontSize: 11,
     color: colors.text.secondary
   },
-  recBodyRow: {
+  scenarioEtaVal: {
+    fontWeight: typography.weights.bold,
+    color: colors.text.bright
+  },
+  scenarioRight: {
+    alignItems: 'flex-end'
+  },
+  savingsPill: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primarySoft,
+    borderRadius: spacing.radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3
+  },
+  savingsText: {
+    fontSize: 11,
+    fontWeight: typography.weights.extrabold,
+    color: colors.primary
+  },
+  delayText: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    color: colors.dangerBright
+  },
+  baselineText: {
+    fontSize: 11,
+    color: colors.text.muted
+  },
+  recommendationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.xs
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md
   },
-  recBody: {
-    flex: 1,
+  recommendationText: {
     fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.body
-  },
-  recRoute: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
-    marginTop: spacing.xs
+    lineHeight: 18,
+    color: colors.text.bright,
+    flex: 1
   }
 });

@@ -9,7 +9,8 @@ import {
   ArrowDown,
   Minus,
   Clock,
-  IndianRupee
+  Coins,
+  Scale
 } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { normalizeReliability } from '../../utils/format';
@@ -28,7 +29,6 @@ interface Comparison {
   key: string;
   label: string;
   icon: React.ReactNode;
-  /** Signed delta where positive always means "best route is better". */
   delta: number;
   text: string;
 }
@@ -39,21 +39,13 @@ const TradeoffMatrixBase: React.FC<TradeoffMatrixProps> = ({ fastestRoute, bestR
     [bestRoute.predicted_eta_p50, fastestRoute.predicted_eta_p50]
   );
 
-  /**
-   * Every row below reports the true measured delta. The previous version wrapped
-   * these in `Math.max(12, …)` / `Math.max(10, …)`, so a 1-point difference —
-   * or a difference in the wrong direction — was displayed as "12% Lower".
-   *
-   * Reliability is normalized on both sides before subtracting, since one route
-   * can arrive as a fraction and the other as a percentage.
-   */
   const comparisons = useMemo<Comparison[]>(() => {
     const rows: Comparison[] = [];
 
     const congestionDelta = Math.round(fastestRoute.avg_congestion - bestRoute.avg_congestion);
     rows.push({
       key: 'congestion',
-      label: 'Congestion',
+      label: 'Traffic Delay Risk',
       icon:
         congestionDelta > 0 ? (
           <TrendingDown size={14} color={colors.primary} />
@@ -65,8 +57,8 @@ const TradeoffMatrixBase: React.FC<TradeoffMatrixProps> = ({ fastestRoute, bestR
       delta: congestionDelta,
       text:
         congestionDelta === 0
-          ? 'Same'
-          : `${Math.abs(congestionDelta)}% ${congestionDelta > 0 ? 'lower' : 'higher'}`
+          ? 'Identical'
+          : `${Math.abs(congestionDelta)}% ${congestionDelta > 0 ? 'Less Traffic' : 'More Traffic'}`
     });
 
     const bestRel = bestRoute.reliability ? normalizeReliability(bestRoute.reliability.reliability_score) : null;
@@ -78,7 +70,7 @@ const TradeoffMatrixBase: React.FC<TradeoffMatrixProps> = ({ fastestRoute, bestR
       const relDelta = bestRel - fastestRel;
       rows.push({
         key: 'reliability',
-        label: 'Historical reliability',
+        label: 'Arrival Predictability',
         icon:
           relDelta > 0 ? (
             <ArrowUp size={14} color={colors.primary} />
@@ -88,157 +80,102 @@ const TradeoffMatrixBase: React.FC<TradeoffMatrixProps> = ({ fastestRoute, bestR
             <Minus size={14} color={colors.text.secondary} />
           ),
         delta: relDelta,
-        text: relDelta === 0 ? 'Same' : `${Math.abs(relDelta)}% ${relDelta > 0 ? 'higher' : 'lower'}`
+        text: relDelta === 0 ? 'Same' : `${Math.abs(relDelta)}% ${relDelta > 0 ? 'More Reliable' : 'Less Reliable'}`
       });
     }
 
-    const bestBuffer = bestRoute.reliability?.buffer_index;
-    const fastestBuffer = fastestRoute.reliability?.buffer_index;
-    if (bestBuffer !== undefined && bestBuffer !== null && fastestBuffer !== undefined && fastestBuffer !== null) {
-      const bufferDelta = Math.round((fastestBuffer - bestBuffer) * 100);
-      rows.push({
-        key: 'buffer',
-        label: 'Delay risk (buffer index)',
-        icon:
-          bufferDelta > 0 ? (
-            <ArrowDown size={14} color={colors.primary} />
-          ) : bufferDelta < 0 ? (
-            <ArrowUp size={14} color={colors.fastest} />
-          ) : (
-            <Minus size={14} color={colors.text.secondary} />
-          ),
-        delta: bufferDelta,
-        text:
-          bufferDelta === 0
-            ? 'Same'
-            : `${Math.abs(bufferDelta)}pp ${bufferDelta > 0 ? 'lower' : 'higher'}`
-      });
-    }
-
-    const tollDelta = Math.round(fastestRoute.toll_cost - bestRoute.toll_cost);
-    // Only show the toll row when the costs actually differ — the old code
-    // rendered "(Save ₹0)" whenever they matched.
-    if (tollDelta !== 0) {
-      rows.push({
-        key: 'toll',
-        label: 'Toll cost',
-        icon: <IndianRupee size={14} color={tollDelta > 0 ? colors.primary : colors.fastest} />,
-        delta: tollDelta,
-        text: `₹${Math.abs(tollDelta)} ${tollDelta > 0 ? 'cheaper' : 'more expensive'}`
-      });
-    }
+    const tollDelta = (fastestRoute.toll_cost || 0) - (bestRoute.toll_cost || 0);
+    rows.push({
+      key: 'toll',
+      label: 'Toll Savings',
+      icon: <Coins size={14} color={tollDelta > 0 ? colors.primary : colors.text.secondary} />,
+      delta: tollDelta,
+      text: tollDelta === 0 ? 'Same Tolls' : tollDelta > 0 ? `Save ₹${tollDelta}` : `Extra ₹${Math.abs(tollDelta)}`
+    });
 
     return rows;
-  }, [fastestRoute, bestRoute]);
-
-  const advantages = comparisons.filter(c => c.delta > 0);
-  const tradeoffs = comparisons.filter(c => c.delta < 0);
-  const neutral = comparisons.filter(c => c.delta === 0);
+  }, [bestRoute, fastestRoute]);
 
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>WHY IS BEST DIFFERENT?</Text>
-        <Badge variant="primary" size="sm">
-          Trade-Off
+        <View style={styles.headerLeft}>
+          <View style={styles.iconCircle}>
+            <Scale size={14} color={colors.fastest} />
+          </View>
+          <View>
+            <Text style={styles.title}>ROUTE TRADEOFF COMPARISON</Text>
+            <Text style={styles.subTitle}>Recommended Smart Route vs Fastest Path</Text>
+          </View>
+        </View>
+        <Badge variant="fastest" size="sm">
+          {durationDiff > 0 ? `+${durationDiff}m trade` : 'Time Parity'}
         </Badge>
       </View>
 
-      {/* Side-by-Side Comparison Box */}
-      <View style={styles.sideBySideRow}>
-        <Card variant="nested" style={[styles.routeBox, styles.fastestBox]}>
-          <View style={styles.boxTagRow}>
-            <Zap size={11} color={colors.fastest} />
-            <Text style={styles.fastestTagText}>Fastest</Text>
+      {/* Side by Side Route Header */}
+      <View style={styles.vsRow}>
+        <View style={[styles.vsCard, styles.vsCardBest]}>
+          <View style={styles.vsCardTop}>
+            <ShieldCheck size={12} color={colors.primary} />
+            <Text style={styles.vsCardLabel}>SMART CHOICE</Text>
           </View>
-          <Text style={styles.boxEta}>
-            {fastestRoute.predicted_eta_p50} <Text style={styles.boxEtaUnit}>min</Text>
+          <Text style={styles.vsCardName} numberOfLines={1}>
+            {bestRoute.name}
           </Text>
-          <Text style={styles.boxSub}>{fastestRoute.distance_km} km</Text>
-        </Card>
+          <Text style={styles.vsCardEta}>{bestRoute.predicted_eta_p50} min</Text>
+        </View>
 
-        <Card variant="nested" style={[styles.routeBox, styles.bestBox]}>
-          <View style={styles.boxTagRow}>
-            <ShieldCheck size={11} color={colors.primary} />
-            <Text style={styles.bestTagText}>Best</Text>
+        <View style={styles.vsDivider}>
+          <Text style={styles.vsText}>VS</Text>
+        </View>
+
+        <View style={[styles.vsCard, styles.vsCardFastest]}>
+          <View style={styles.vsCardTop}>
+            <Zap size={12} color={colors.fastest} />
+            <Text style={[styles.vsCardLabel, { color: colors.fastest }]}>FASTEST</Text>
           </View>
-          <Text style={styles.boxEta}>
-            {bestRoute.predicted_eta_p50} <Text style={styles.boxEtaUnit}>min</Text>
+          <Text style={styles.vsCardName} numberOfLines={1}>
+            {fastestRoute.name}
           </Text>
-          <Text style={styles.boxSub}>{bestRoute.distance_km} km</Text>
-        </Card>
+          <Text style={styles.vsCardEta}>{fastestRoute.predicted_eta_p50} min</Text>
+        </View>
       </View>
 
-      {/* Difference Pill */}
-      <View style={styles.diffPill}>
-        <View style={styles.diffLabelRow}>
-          <Clock size={12} color={colors.text.secondary} />
-          <Text style={styles.diffLabel}>Nominal ETA difference</Text>
-        </View>
-        <Text
-          style={[
-            styles.diffVal,
-            durationDiff > 0 && styles.diffValWorse,
-            durationDiff < 0 && styles.diffValBetter
-          ]}
-        >
-          {durationDiff === 0
-            ? 'None'
-            : `${durationDiff > 0 ? '+' : ''}${durationDiff} min`}
-        </Text>
+      {/* Tradeoff Rows */}
+      <View style={styles.comparisonList}>
+        {comparisons.map(comp => (
+          <View key={comp.key} style={styles.compRow}>
+            <View style={styles.compLeft}>
+              {comp.icon}
+              <Text style={styles.compLabel}>{comp.label}</Text>
+            </View>
+            <View
+              style={[
+                styles.compBadge,
+                comp.delta > 0
+                  ? styles.compBadgeGood
+                  : comp.delta < 0
+                  ? styles.compBadgeWarn
+                  : styles.compBadgeNeutral
+              ]}
+            >
+              <Text
+                style={[
+                  styles.compBadgeText,
+                  comp.delta > 0
+                    ? { color: colors.primary }
+                    : comp.delta < 0
+                    ? { color: colors.fastest }
+                    : { color: colors.text.muted }
+                ]}
+              >
+                {comp.text}
+              </Text>
+            </View>
+          </View>
+        ))}
       </View>
-
-      {advantages.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ADVANTAGES OF BEST ROUTE</Text>
-          {advantages.map(row => (
-            <View key={row.key} style={[styles.row, styles.rowAdvantage]}>
-              <View style={styles.rowLeft}>
-                {row.icon}
-                <Text style={styles.rowText}>{row.label}</Text>
-              </View>
-              <Text style={styles.rowValAdvantage}>{row.text}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Trade-offs are now shown rather than silently suppressed. */}
-      {tradeoffs.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TRADE-OFFS ACCEPTED</Text>
-          {tradeoffs.map(row => (
-            <View key={row.key} style={[styles.row, styles.rowTradeoff]}>
-              <View style={styles.rowLeft}>
-                {row.icon}
-                <Text style={styles.rowText}>{row.label}</Text>
-              </View>
-              <Text style={styles.rowValTradeoff}>{row.text}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {neutral.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>NO DIFFERENCE</Text>
-          {neutral.map(row => (
-            <View key={row.key} style={[styles.row, styles.rowNeutral]}>
-              <View style={styles.rowLeft}>
-                {row.icon}
-                <Text style={styles.rowText}>{row.label}</Text>
-              </View>
-              <Text style={styles.rowValNeutral}>{row.text}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {comparisons.length === 0 && (
-        <Text style={styles.noComparison}>
-          The routing engine did not return comparable metrics for these two routes.
-        </Text>
-      )}
     </Card>
   );
 };
@@ -247,176 +184,134 @@ export const TradeoffMatrix = React.memo(TradeoffMatrixBase);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.lg
+    padding: spacing.cardPadding,
+    marginBottom: spacing.lg,
+    borderRadius: spacing.radius.xl
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
-  title: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.body,
-    letterSpacing: typography.tracking.normal
-  },
-  sideBySideRow: {
+  headerLeft: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg
-  },
-  routeBox: {
+    alignItems: 'center',
+    gap: spacing.sm,
     flex: 1
   },
-  fastestBox: {
-    borderColor: colors.fastestBorder
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.fastestSoft,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  bestBox: {
-    borderColor: colors.primaryBorder
+  title: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.bright,
+    letterSpacing: 0.5
   },
-  boxTagRow: {
+  subTitle: {
+    fontSize: 10,
+    color: colors.text.muted,
+    marginTop: 1
+  },
+  vsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    marginBottom: spacing.md
+  },
+  vsCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  vsCardBest: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primaryFaint
+  },
+  vsCardFastest: {
+    borderColor: colors.fastestBorder,
+    backgroundColor: colors.fastestFaint
+  },
+  vsCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginBottom: 2
   },
-  fastestTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    textTransform: 'uppercase'
-  },
-  bestTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  vsCardLabel: {
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.primary,
-    textTransform: 'uppercase'
+    letterSpacing: 0.5
   },
-  boxEta: {
-    fontSize: typography.sizes.h2,
-    lineHeight: typography.line.h2,
+  vsCardName: {
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: 4
+  },
+  vsCardEta: {
+    fontSize: typography.sizes.h3,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
-  boxEtaUnit: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+  vsDivider: {
+    paddingHorizontal: 4
   },
-  boxSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
-    marginTop: 1
+  vsText: {
+    fontSize: 10,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.dimmed
   },
-  diffPill: {
+  comparisonList: {
+    gap: spacing.xs
+  },
+  compRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.md
-  },
-  diffLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
-  },
-  diffLabel: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary
-  },
-  diffVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.primary
-  },
-  diffValWorse: {
-    color: colors.fastest
-  },
-  diffValBetter: {
-    color: colors.primary
-  },
-  section: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.text.muted,
-    letterSpacing: typography.tracking.normal,
-    marginBottom: 2
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md
-  },
-  rowAdvantage: {
-    backgroundColor: colors.primaryFaint,
-    borderColor: colors.primaryBorderSoft
-  },
-  rowTradeoff: {
-    backgroundColor: colors.fastestFaint,
-    borderColor: colors.fastestBorder
-  },
-  rowNeutral: {
-    backgroundColor: colors.card,
     borderColor: colors.border
   },
-  rowLeft: {
+  compLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1
+    gap: spacing.sm
   },
-  rowText: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.body,
-    flex: 1
-  },
-  rowValAdvantage: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary
-  },
-  rowValTradeoff: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.extrabold,
-    color: colors.fastest
-  },
-  rowValNeutral: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
+  compLabel: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
     color: colors.text.secondary
   },
-  noComparison: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
-    fontStyle: 'italic'
+  compBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: spacing.radius.sm
+  },
+  compBadgeGood: {
+    backgroundColor: colors.primarySoft
+  },
+  compBadgeWarn: {
+    backgroundColor: colors.fastestSoft
+  },
+  compBadgeNeutral: {
+    backgroundColor: colors.card
+  },
+  compBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold
   }
 });

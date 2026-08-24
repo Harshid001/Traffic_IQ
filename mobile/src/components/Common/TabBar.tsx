@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Navigation, GitFork, TrendingUp, Sparkles, SlidersHorizontal } from 'lucide-react-native';
 import { useNavigationStore, ActiveTab } from '../../store/navigationStore';
 import { colors } from '../../theme/colors';
@@ -10,8 +10,8 @@ const TABS: { id: ActiveTab; label: string; icon: any }[] = [
   { id: 'navigate', label: 'Navigate', icon: Navigation },
   { id: 'routes', label: 'Routes', icon: GitFork },
   { id: 'traffic', label: 'Traffic', icon: TrendingUp },
-  { id: 'insights', label: 'Insights', icon: Sparkles },
-  { id: 'profile', label: 'Profile', icon: SlidersHorizontal }
+  { id: 'insights', label: 'Copilot', icon: Sparkles },
+  { id: 'profile', label: 'Driver Hub', icon: SlidersHorizontal }
 ];
 
 const TabBarBase: React.FC = () => {
@@ -29,20 +29,20 @@ const TabBarBase: React.FC = () => {
         return (
           <TouchableOpacity
             key={tab.id}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={() => setActiveTab(tab.id)}
             style={styles.tabButton}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={isLiveNav ? `${tab.label}, navigation in progress` : tab.label}
           >
-            {/* Active pill indicator behind icon */}
+            {/* Active Pill Container */}
             <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
               <View style={styles.iconContainer}>
                 <Icon
-                  size={22}
-                  color={isActive ? colors.primary : colors.text.muted}
-                  strokeWidth={isActive ? 2.5 : 1.8}
+                  size={20}
+                  color={isActive ? colors.primaryBright : colors.text.muted}
+                  strokeWidth={isActive ? 2.4 : 1.8}
                 />
                 {isLiveNav && <View style={styles.activeNavDot} />}
               </View>
@@ -59,35 +59,41 @@ export const TabBar = React.memo(TabBarBase);
 
 const styles = StyleSheet.create({
   tabBar: {
-    minHeight: 68,
-    backgroundColor: colors.background,
+    minHeight: 66,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs
+    paddingBottom: spacing.sm,
+    paddingTop: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    zIndex: 40
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: 2,
     minHeight: spacing.touchTargetMin
   },
   iconPill: {
-    width: spacing.touchTargetMin,
+    width: 44,
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: spacing.radius.lg,
+    borderRadius: spacing.radius.pill,
     marginBottom: 2
   },
   iconPillActive: {
-    backgroundColor: colors.primaryFaint,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: colors.primaryBorderSoft
+    borderColor: colors.primaryBorder
   },
   iconContainer: {
     position: 'relative'
@@ -95,22 +101,23 @@ const styles = StyleSheet.create({
   activeNavDot: {
     position: 'absolute',
     top: -2,
-    right: -3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary
+    right: -4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.surface
   },
   tabLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: typography.weights.medium,
-    // Was #64748B at 4.16:1 — below AA for this size. #8B98AC measures 6.78:1.
     color: colors.text.muted,
     marginTop: 1
   },
   tabLabelActive: {
-    color: colors.primary,
+    color: colors.primaryBright,
     fontWeight: typography.weights.bold
   }
 });

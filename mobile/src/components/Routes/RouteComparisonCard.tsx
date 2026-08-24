@@ -1,6 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { Zap, ShieldCheck, Check, ArrowRight, Star } from 'lucide-react-native';
+import { Zap, ShieldCheck, Check, ArrowRight, MapPin, Coins, Navigation } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { useNavigationStore } from '../../store/navigationStore';
 import { normalizeReliability } from '../../utils/format';
@@ -11,9 +11,10 @@ import { spacing } from '../../theme/spacing';
 interface RouteComparisonCardProps {
   route: RouteData;
   type: 'best' | 'fastest' | 'alternative';
+  timeDeltaMin?: number;
 }
 
-const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, type }) => {
+const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, type, timeDeltaMin }) => {
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
   const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
   const setActiveTab = useNavigationStore(s => s.setActiveTab);
@@ -24,11 +25,10 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
   const isBest = type === 'best';
   const isFastest = type === 'fastest';
 
-  // Reliability may arrive as a decimal fraction (0.64) or a percentage (64).
   const reliabilityPct = normalizeReliability(route.reliability?.reliability_score);
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true, speed: 30 }).start();
   }, [scaleAnim]);
 
   const handlePressOut = useCallback(() => {
@@ -43,8 +43,6 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
     setSelectedRouteId(route.id);
     setActiveTab('navigate');
   }, [setSelectedRouteId, setActiveTab, route.id]);
-
-  const typeLabel = isBest ? 'Best for you' : isFastest ? 'Fastest route' : 'Alternative route';
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -61,26 +59,34 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
         ]}
         accessibilityRole="radio"
         accessibilityState={{ checked: isSelected }}
-        accessibilityLabel={`${typeLabel}: ${route.name}. ${route.predicted_eta_p50} minutes, ${route.distance_km} kilometres. Traffic ${route.congestion_category}. Reliability ${reliabilityPct} percent. Toll ${route.toll_cost} rupees.`}
-        accessibilityHint={isSelected ? 'Currently selected' : 'Tap to select this route'}
       >
         {/* Top Badge Strip */}
         <View style={styles.topBadgeRow}>
-          {isBest ? (
-            <View style={styles.bestTag}>
-              <ShieldCheck size={12} color={colors.primary} />
-              <Text style={styles.bestTagText}>Best For You</Text>
-            </View>
-          ) : isFastest ? (
-            <View style={styles.fastestTag}>
-              <Zap size={12} color={colors.fastest} />
-              <Text style={styles.fastestTagText}>Fastest</Text>
-            </View>
-          ) : (
-            <View style={styles.altTag}>
-              <Text style={styles.altTagText}>Alternative</Text>
-            </View>
-          )}
+          <View style={styles.tagGroup}>
+            {isBest ? (
+              <View style={styles.bestTag}>
+                <ShieldCheck size={12} color={colors.primary} />
+                <Text style={styles.bestTagText}>Smart Recommendation</Text>
+              </View>
+            ) : isFastest ? (
+              <View style={styles.fastestTag}>
+                <Zap size={12} color={colors.fastest} />
+                <Text style={styles.fastestTagText}>Fastest Time</Text>
+              </View>
+            ) : (
+              <View style={styles.altTag}>
+                <Text style={styles.altTagText}>Alternative Route</Text>
+              </View>
+            )}
+
+            {timeDeltaMin !== undefined && timeDeltaMin !== 0 && (
+              <View style={styles.deltaPill}>
+                <Text style={styles.deltaText}>
+                  {timeDeltaMin > 0 ? `+${timeDeltaMin} min slower` : `${timeDeltaMin} min faster`}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {isSelected ? (
             <View style={styles.selectedPill}>
@@ -92,66 +98,62 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
           )}
         </View>
 
-        {/* Name and Major Numbers */}
+        {/* Route Name & Big Numbers */}
         <View style={styles.nameRow}>
           <View style={styles.nameCol}>
             <Text style={styles.routeName}>{route.name}</Text>
             {route.summary ? <Text style={styles.routeSummary}>{route.summary}</Text> : null}
           </View>
-          <View style={styles.etaCol}>
-            <Text style={styles.etaNumber}>
+          <View style={styles.etaBlock}>
+            <Text style={styles.etaHero}>
               {route.predicted_eta_p50} <Text style={styles.etaUnit}>min</Text>
             </Text>
-            <Text style={styles.distText}>{route.distance_km} km</Text>
+            <Text style={styles.distHero}>{route.distance_km} km</Text>
           </View>
         </View>
 
-        {/* 3 Metrics */}
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>TRAFFIC</Text>
-            <Text style={[styles.metricVal, { color: colors.primary }]}>
-              {route.congestion_category || '—'}
+        {/* Metric Badges Strip */}
+        <View style={styles.metricStrip}>
+          <View style={styles.metricBadge}>
+            <Text style={styles.metricLabel}>Traffic:</Text>
+            <Text style={[styles.metricVal, { color: colors.primaryBright }]}>
+              {route.congestion_category}
             </Text>
           </View>
-          <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>RELIABILITY</Text>
-            <Text style={[styles.metricVal, { color: colors.text.bright }]}>
-              {route.reliability ? `${reliabilityPct}%` : '—'}
+
+          <View style={styles.metricBadge}>
+            <Text style={styles.metricLabel}>On-Time:</Text>
+            <Text style={styles.metricVal}>
+              {reliabilityPct}%
             </Text>
           </View>
-          <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>TOLL</Text>
-            <Text style={[styles.metricVal, { color: colors.text.body }]}>₹{route.toll_cost}</Text>
+
+          <View style={styles.metricBadge}>
+            <Text style={styles.metricLabel}>Tolls:</Text>
+            <Text style={styles.metricVal}>
+              ₹{route.toll_cost}
+            </Text>
           </View>
         </View>
 
-        {/* Footer Navigation Action */}
-        <View style={styles.footerRow}>
-          <View style={styles.highlightRow}>
-            {isBest ? (
-              <Star size={11} color={colors.text.secondary} />
-            ) : isFastest ? (
-              <Zap size={11} color={colors.text.secondary} />
-            ) : null}
-            <Text style={styles.highlightText} numberOfLines={2}>
-              {isBest
-                ? 'Balances congestion risk and reliability'
-                : isFastest
-                  ? 'Lowest nominal travel time'
-                  : 'Candidate considered during scoring'}
-            </Text>
-          </View>
+        {/* Action Button Row */}
+        <View style={styles.actionRow}>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={handleNavigate}
-            style={styles.navButton}
-            hitSlop={spacing.hitSlop}
-            accessibilityRole="button"
-            accessibilityLabel={`Navigate using ${route.name}`}
+            style={styles.previewBtn}
           >
-            <Text style={styles.navButtonText}>Navigate</Text>
-            <ArrowRight size={12} color={colors.text.bright} />
+            <MapPin size={14} color={colors.primary} />
+            <Text style={styles.previewBtnText}>Preview On Map</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={handleNavigate}
+            style={styles.driveBtn}
+          >
+            <Navigation size={14} color={colors.text.onAccent} />
+            <Text style={styles.driveBtnText}>Start Trip</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -159,28 +161,28 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
   );
 };
 
-/**
- * Memoized: `RoutesScreen` renders this for every candidate route, and each one
- * subscribes to the store independently.
- */
 export const RouteComparisonCard = React.memo(RouteComparisonCardBase);
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderRadius: spacing.radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.cardPadding,
-    marginBottom: spacing.lg
+    marginBottom: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8
   },
   cardBest: {
     borderColor: colors.primaryBorder,
-    backgroundColor: colors.primaryTint
+    backgroundColor: colors.primaryFaint
   },
   cardFastest: {
     borderColor: colors.fastestBorder,
-    backgroundColor: colors.fastestTint
+    backgroundColor: colors.fastestFaint
   },
   cardSelected: {
     borderWidth: 1.5,
@@ -190,175 +192,184 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    gap: spacing.md
+    marginBottom: spacing.sm
   },
-  bestTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 3
-  },
-  bestTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    textTransform: 'uppercase'
-  },
-  fastestTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.fastestSoft,
-    borderWidth: 1,
-    borderColor: colors.fastestBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 3
-  },
-  fastestTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    textTransform: 'uppercase'
-  },
-  altTag: {
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 3
-  },
-  altTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary,
-    textTransform: 'uppercase'
-  },
-  selectedPill: {
+  tagGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs
   },
+  bestTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  bestTagText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
+  },
+  fastestTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.fastestSoft,
+    borderWidth: 1,
+    borderColor: colors.fastestBorder,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  fastestTagText: {
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.fastest
+  },
+  altTag: {
+    backgroundColor: colors.neutral,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  altTagText: {
+    fontSize: 10,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.secondary
+  },
+  deltaPill: {
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  deltaText: {
+    fontSize: 10,
+    color: colors.text.muted,
+    fontWeight: typography.weights.medium
+  },
+  selectedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: spacing.radius.pill
+  },
   selectedPillText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.bold,
     color: colors.primary
   },
   tapSelectText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     color: colors.text.muted
   },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    gap: spacing.lg
+    marginBottom: spacing.md,
+    gap: spacing.md
   },
   nameCol: {
     flex: 1
   },
   routeName: {
-    fontSize: typography.sizes.label,
-    lineHeight: typography.line.label,
-    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   routeSummary: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: typography.sizes.caption,
     color: colors.text.secondary,
-    marginTop: 1
+    marginTop: 2
   },
-  etaCol: {
+  etaBlock: {
     alignItems: 'flex-end'
   },
-  etaNumber: {
+  etaHero: {
     fontSize: typography.sizes.h1,
-    lineHeight: typography.line.h1,
+    lineHeight: 28,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   etaUnit: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+    fontSize: typography.sizes.caption,
+    color: colors.primary,
+    fontWeight: typography.weights.bold
   },
-  distText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+  distHero: {
+    fontSize: typography.sizes.caption,
     fontWeight: typography.weights.semibold,
-    color: colors.text.body
+    color: colors.text.muted
   },
-  metricsRow: {
+  metricStrip: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
     marginBottom: spacing.md
   },
-  metricCell: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: spacing.radius.sm,
-    padding: spacing.md,
-    alignItems: 'center'
+  metricBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1
   },
   metricLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
+    fontSize: 10,
     color: colors.text.muted
   },
   metricVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: 11,
     fontWeight: typography.weights.bold,
-    marginTop: 2,
-    textTransform: 'capitalize'
+    color: colors.text.primary
   },
-  footerRow: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm
   },
-  highlightRow: {
+  previewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    flex: 1
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm
   },
-  highlightText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
-    flex: 1
-  },
-  navButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.neutral,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    minHeight: 36,
-    justifyContent: 'center'
-  },
-  navButtonText: {
-    fontSize: typography.sizes.caption,
+  previewBtnText: {
+    fontSize: 11,
     fontWeight: typography.weights.bold,
-    color: colors.text.bright
+    color: colors.primary
+  },
+  driveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6
+  },
+  driveBtnText: {
+    fontSize: 11,
+    fontWeight: typography.weights.extrabold,
+    color: colors.text.onAccent
   }
 });

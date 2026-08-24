@@ -80,6 +80,7 @@ interface NavigationState {
   setSimulationSpeed: (speed: number) => void;
   stepSimulation: (deltaProgress?: number) => Promise<void>;
   dismissActiveAlert: () => void;
+  triggerSimulatedAlert: (customAlert?: Partial<AlertData>) => void;
   acceptReroute: (newRouteId: string) => Promise<void>;
 }
 
@@ -331,6 +332,35 @@ export const useNavigationStore = create<NavigationState>()(
       },
 
       dismissActiveAlert: () => set({ activeAlert: null }),
+
+      triggerSimulatedAlert: (customAlert) => {
+        const { routingData, selectedRouteId, isMuted } = get();
+        const routes = routingData?.routes ?? [];
+        const activeRoute = routes.find(r => r.id === selectedRouteId) || routes[0];
+        const altRoute = routes.find(r => r.id !== activeRoute?.id) || routes[1];
+
+        const savings = activeRoute && altRoute
+          ? Math.max(2.0, Math.round(activeRoute.predicted_eta_p50 - altRoute.predicted_eta_p50))
+          : 6.0;
+
+        const fakeAlert: AlertData = {
+          level: 'BETTER_ROUTE',
+          type: 'proactive_bottleneck_warning',
+          title: 'Severe Bottleneck Predicted Ahead',
+          message: `Heavy congestion (+20m forecast: 88%) detected on upcoming road. Alternative route saves ~${savings} min.`,
+          action_label: 'Accept Reroute',
+          better_route_id: altRoute?.id,
+          savings_min: savings,
+          current_cong: 72,
+          fc20_cong: 88,
+          expected_delay_min: 7.5,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          ...(customAlert || {})
+        };
+
+        emitAlertCue('BETTER_ROUTE', isMuted);
+        set({ activeAlert: fakeAlert, lastAlertAtMs: Date.now() });
+      },
 
       acceptReroute: async (newRouteId) => {
         const { routingData, progressPct, isMuted } = get();

@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     
     # Ollama Local LLM Configuration
     OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "phi-4-mini")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "phi4-mini")
     OLLAMA_TIMEOUT_SECONDS: float = 8.0
     
     # Database

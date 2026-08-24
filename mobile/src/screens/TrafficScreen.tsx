@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { TrendingUp, Activity } from 'lucide-react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { TrendingUp, Activity, ShieldCheck, Zap } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { ForecastTimeline } from '../components/Traffic/ForecastTimeline';
 import { TrafficDNAPlot } from '../components/Traffic/TrafficDNAPlot';
@@ -14,6 +14,7 @@ import { spacing } from '../theme/spacing';
 export const TrafficScreen: React.FC = () => {
   const routingData = useNavigationStore(s => s.routingData);
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
+  const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
   const isLoadingRoutes = useNavigationStore(s => s.isLoadingRoutes);
   const routesError = useNavigationStore(s => s.routesError);
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
@@ -21,10 +22,10 @@ export const TrafficScreen: React.FC = () => {
 
   const retry = useCallback(() => fetchRoutes(selectedCorridor), [fetchRoutes, selectedCorridor]);
 
+  const routes = routingData?.routes ?? [];
   const selectedRoute = useMemo(() => {
-    const routes = routingData?.routes ?? [];
     return routes.find(r => r.id === selectedRouteId) || routes[0];
-  }, [routingData, selectedRouteId]);
+  }, [routes, selectedRouteId]);
 
   return (
     <DataStateWrapper
@@ -34,7 +35,7 @@ export const TrafficScreen: React.FC = () => {
       errorTitle="Traffic data unavailable"
       isEmpty={!isLoadingRoutes && !routesError && !selectedRoute}
       emptyTitle="No active route"
-      emptyMessage="Calculate a corridor to see traffic analytics."
+      emptyMessage="Calculate a corridor to view live traffic analytics and forecasts."
       emptyIcon={<TrendingUp size={20} color={colors.text.secondary} />}
       isStale={!!routingData?.is_fallback}
       lastUpdatedAt={routingData?.fetched_at}
@@ -47,32 +48,64 @@ export const TrafficScreen: React.FC = () => {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.screenHeader}>
+          <View style={styles.contentWrapper}>
+            {/* Header */}
+            <View style={styles.screenHeader}>
             <View style={styles.headerTextCol}>
               <View style={styles.titleRow}>
-                <TrendingUp size={16} color={colors.primary} />
+                <TrendingUp size={18} color={colors.primary} />
                 <Text style={styles.titleText}>Traffic Intelligence</Text>
               </View>
               <Text style={styles.subText} numberOfLines={1}>
-                Real-time analytics for {selectedRoute.name}
+                Real-time congestion analytics for {selectedRoute.name}
               </Text>
             </View>
 
             <View style={styles.activePill}>
-              <Activity size={10} color={colors.primary} />
-              <Text style={styles.activePillText}>Active Monitor</Text>
+              <View style={styles.liveDot} />
+              <Text style={styles.activePillText}>Live Monitor</Text>
             </View>
           </View>
 
-          {/* Chronos-2 Forecast */}
+          {/* Interactive Route Selector Chips */}
+          {routes.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.routeSelectorScroll}
+            >
+              {routes.map(r => {
+                const isSelected = r.id === selectedRoute.id;
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    activeOpacity={0.75}
+                    onPress={() => setSelectedRouteId(r.id)}
+                    style={[styles.routeChip, isSelected && styles.routeChipSelected]}
+                  >
+                    {r.is_best ? (
+                      <ShieldCheck size={11} color={isSelected ? colors.primary : colors.text.muted} />
+                    ) : r.is_fastest ? (
+                      <Zap size={11} color={isSelected ? colors.fastest : colors.text.muted} />
+                    ) : null}
+                    <Text style={[styles.routeChipText, isSelected && styles.routeChipTextSelected]}>
+                      {r.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* Smart Departure & Forecast Timeline */}
           <ForecastTimeline route={selectedRoute} />
 
-          {/* 24-Hour Historical Traffic DNA */}
+          {/* 24-Hour Historical Commute Rhythm */}
           <TrafficDNAPlot route={selectedRoute} />
 
-          {/* Segment Congestion Monitor */}
+          {/* Step-by-Step Segment Congestion */}
           <SegmentBottlenecks route={selectedRoute} />
+          </View>
         </ScrollView>
       )}
     </DataStateWrapper>
@@ -88,17 +121,16 @@ const styles = StyleSheet.create({
     padding: spacing.cardPadding,
     paddingBottom: spacing.xxl
   },
-  stateWrapper: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    padding: spacing.cardPadding
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 580,
+    alignSelf: 'center'
   },
   screenHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     gap: spacing.md
   },
   headerTextCol: {
@@ -107,35 +139,69 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   titleText: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
+    fontSize: typography.sizes.h2,
+    lineHeight: typography.line.h2,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   subText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.text.secondary,
     marginTop: 1
   },
   activePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primaryFaint,
+    gap: 4,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: colors.primaryBorderSoft,
+    borderColor: colors.primaryBorder,
     borderRadius: spacing.radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: 3
   },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary
+  },
   activePillText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.primary
+  },
+  routeSelectorScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+    paddingVertical: 2
+  },
+  routeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    borderRadius: spacing.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    height: 32
+  },
+  routeChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft
+  },
+  routeChipText: {
+    fontSize: 11,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.secondary
+  },
+  routeChipTextSelected: {
+    color: colors.primaryBright,
+    fontWeight: typography.weights.bold
   }
 });

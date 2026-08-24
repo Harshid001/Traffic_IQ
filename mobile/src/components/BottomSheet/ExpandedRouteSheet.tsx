@@ -8,15 +8,21 @@ import {
   Navigation2,
   Star,
   AlertTriangle,
-  GripHorizontal
+  GripHorizontal,
+  Clock,
+  Coins,
+  Activity,
+  Sparkles
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { normalizeReliability } from '../../utils/format';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { useLayout } from '../../theme/useLayout';
 
 const ExpandedRouteSheetBase: React.FC = () => {
+  const { sheetMaxHeight } = useLayout();
   const routingData = useNavigationStore(s => s.routingData);
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
   const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
@@ -32,8 +38,6 @@ const ExpandedRouteSheetBase: React.FC = () => {
   const routes = routingData?.routes ?? [];
   const selectedRoute = routes.find(r => r.id === selectedRouteId) || routes[0];
 
-  // Reliability may arrive as a decimal fraction (0.64) or a percentage (64).
-  // This guard was missing here, so the sheet rendered "0.64%".
   const reliabilityPct = normalizeReliability(selectedRoute?.reliability?.reliability_score);
 
   const handleStart = useCallback(async () => {
@@ -54,14 +58,14 @@ const ExpandedRouteSheetBase: React.FC = () => {
       : Math.round(selectedRoute.avg_congestion);
 
   return (
-    <View style={styles.container}>
-      {/* Drag Bar & Close */}
+    <View style={[styles.container, { maxHeight: sheetMaxHeight }]}>
+      {/* Top Header with Drag Handle & Close */}
       <View style={styles.topHeader}>
         <View style={styles.dragBarSlot}>
           <GripHorizontal size={20} color={colors.borderStrong} />
         </View>
         <TouchableOpacity
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           onPress={toggleBottomSheet}
           style={styles.closeButton}
           hitSlop={spacing.hitSlop}
@@ -73,13 +77,13 @@ const ExpandedRouteSheetBase: React.FC = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Selected Route Title & Big Numbers */}
+        {/* Selected Route Title & Hero Metrics */}
         <View style={styles.routeHeader}>
           <View style={styles.titleBadgeRow}>
             {selectedRoute.is_best ? (
               <View style={styles.bestBadge}>
                 <ShieldCheck size={12} color={colors.primary} />
-                <Text style={styles.bestBadgeText}>Best Route</Text>
+                <Text style={styles.bestBadgeText}>Smart Recommendation</Text>
               </View>
             ) : selectedRoute.is_fastest ? (
               <View style={styles.fastestBadge}>
@@ -88,7 +92,7 @@ const ExpandedRouteSheetBase: React.FC = () => {
               </View>
             ) : (
               <View style={styles.altBadge}>
-                <Text style={styles.altBadgeText}>Alternative</Text>
+                <Text style={styles.altBadgeText}>Alternative Option</Text>
               </View>
             )}
             <Text style={styles.routeName} numberOfLines={1}>
@@ -107,76 +111,85 @@ const ExpandedRouteSheetBase: React.FC = () => {
         {/* 4-Cell Metric Grid */}
         <View style={styles.metricGrid}>
           <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>TRAFFIC STATE</Text>
-            <Text style={[styles.metricVal, { color: colors.primary }]}>
+            <View style={styles.metricHeaderRow}>
+              <Activity size={12} color={colors.primary} />
+              <Text style={styles.metricLabel}>LIVE TRAFFIC</Text>
+            </View>
+            <Text style={[styles.metricVal, { color: colors.primaryBright }]}>
               {selectedRoute.congestion_category}
               {congestion !== null ? ` (${congestion}%)` : ''}
             </Text>
           </View>
 
           <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>RELIABILITY</Text>
+            <View style={styles.metricHeaderRow}>
+              <ShieldCheck size={12} color={colors.info} />
+              <Text style={styles.metricLabel}>ON-TIME CONFIDENCE</Text>
+            </View>
             <Text style={[styles.metricVal, { color: colors.text.bright }]}>
-              {selectedRoute.reliability
-                ? `${reliabilityPct}% (${selectedRoute.reliability.reliability_label})`
-                : '—'}
+              {selectedRoute.reliability ? `${reliabilityPct}%` : 'High'}
             </Text>
           </View>
 
           <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>CHRONOS FORECAST</Text>
-            <Text style={[styles.metricVal, { color: colors.fastest }]}>
-              {selectedRoute.trend || '—'}
+            <View style={styles.metricHeaderRow}>
+              <Clock size={12} color={colors.fastest} />
+              <Text style={styles.metricLabel}>OUTLOOK (+20m)</Text>
+            </View>
+            <Text style={[styles.metricVal, { color: colors.fastestBright }]}>
+              {selectedRoute.trend || 'Stable'}
               {selectedRoute.forecast_20m_p50 !== undefined && selectedRoute.forecast_20m_p50 !== null
-                ? ` (${Math.round(selectedRoute.forecast_20m_p50)}% @ +20m)`
+                ? ` (${Math.round(selectedRoute.forecast_20m_p50)}%)`
                 : ''}
             </Text>
           </View>
 
           <View style={styles.metricCell}>
-            <Text style={styles.metricLabel}>TOLL ROAD</Text>
+            <View style={styles.metricHeaderRow}>
+              <Coins size={12} color={colors.text.secondary} />
+              <Text style={styles.metricLabel}>TOLL FEES</Text>
+            </View>
             <Text style={[styles.metricVal, { color: colors.text.strong }]}>
               ₹{selectedRoute.toll_cost}
             </Text>
           </View>
         </View>
 
-        {/* "WHY THIS ROUTE?" summary. Only asserts what the payload supports. */}
+        {/* "Why This Route?" AI Copilot Rationale */}
         <View style={styles.whyBox}>
           <View style={styles.whyHeader}>
-            <ShieldCheck size={14} color={colors.primary} />
-            <Text style={styles.whyHeaderText}>WHY THIS ROUTE?</Text>
+            <Sparkles size={14} color={colors.primary} />
+            <Text style={styles.whyHeaderText}>SMART COPILOT RATIONALE</Text>
           </View>
           <Text style={styles.whyText}>
             {selectedRoute.is_best
-              ? `Selected for the best balance of congestion${congestion !== null ? ` (${congestion}%)` : ''}${selectedRoute.reliability ? ` and reliability (${reliabilityPct}%)` : ''}.`
+              ? `Recommended for lowest congestion delay and ${reliabilityPct}% predictable arrival time while bypassing major bottleneck junctions.`
               : selectedRoute.is_fastest
-                ? `Lowest nominal travel time (${selectedRoute.predicted_eta_p50} min).`
-                : 'A candidate route considered during multi-objective scoring.'}
+                ? `Shortest total drive duration (${selectedRoute.predicted_eta_p50} mins) under current traffic conditions.`
+                : 'Alternative candidate considered with toll-free scenic corridors.'}
           </Text>
         </View>
 
-        {/* Available Routes List */}
+        {/* Available Alternative Routes List */}
         <View style={styles.routesSection}>
-          <Text style={styles.sectionTitle}>AVAILABLE CANDIDATE ROUTES</Text>
+          <Text style={styles.sectionTitle}>ALL CANDIDATE ROUTES</Text>
           {routes.map((r) => {
             const isSelected = r.id === selectedRouteId;
             return (
               <TouchableOpacity
                 key={r.id}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
                 onPress={() => setSelectedRouteId(r.id)}
                 style={[styles.routeCard, isSelected && styles.routeCardSelected]}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: isSelected }}
-                accessibilityLabel={`${r.name}. ${r.predicted_eta_p50} minutes, ${r.distance_km} kilometres, ${r.congestion_category}, toll ${r.toll_cost} rupees.`}
               >
                 <View style={styles.routeCardLeft}>
                   <View style={styles.routeCardBadgeRow}>
                     {r.is_best ? (
                       <View style={styles.inlineTag}>
                         <Star size={10} color={colors.primary} />
-                        <Text style={styles.routeCardBestTag}>BEST</Text>
+                        <Text style={styles.routeCardBestTag}>RECOMMENDED</Text>
                       </View>
                     ) : r.is_fastest ? (
                       <View style={styles.inlineTag}>
@@ -214,7 +227,7 @@ const ExpandedRouteSheetBase: React.FC = () => {
         {/* Turn-by-Turn Maneuvers if Navigating */}
         {isNavigating && maneuvers.length > 0 && (
           <View style={styles.maneuversSection}>
-            <Text style={styles.sectionTitle}>TURN-BY-TURN MANEUVERS</Text>
+            <Text style={styles.sectionTitle}>TURN-BY-TURN GUIDANCE</Text>
             {maneuvers.map((m, idx) => (
               <View key={`${m.step}-${idx}`} style={styles.maneuverItem}>
                 <View style={styles.maneuverNum}>
@@ -246,29 +259,20 @@ const ExpandedRouteSheetBase: React.FC = () => {
             disabled={isStartingNavigation}
             style={[styles.startButton, isStartingNavigation && styles.startButtonLoading]}
             accessibilityRole="button"
-            accessibilityLabel={
-              isStartingNavigation
-                ? 'Starting navigation'
-                : `Start navigation on ${selectedRoute.name}`
-            }
-            accessibilityState={{ disabled: isStartingNavigation, busy: isStartingNavigation }}
+            accessibilityLabel={`Start navigation on ${selectedRoute.name}`}
           >
             {isStartingNavigation ? (
               <ActivityIndicator size="small" color={colors.text.onAccent} />
             ) : (
               <Navigation2
-                size={18}
+                size={20}
                 color={colors.text.onAccent}
                 strokeWidth={3}
                 style={{ transform: [{ rotate: '45deg' }] }}
               />
             )}
             <Text style={styles.startButtonText}>
-              {isStartingNavigation
-                ? 'Starting...'
-                : navStarted
-                  ? 'Navigation Started'
-                  : 'Start Navigation'}
+              {isStartingNavigation ? 'Preparing Guidance...' : navStarted ? 'Navigation Started' : 'Start Navigation'}
             </Text>
           </TouchableOpacity>
         )}
@@ -281,50 +285,53 @@ export const ExpandedRouteSheet = React.memo(ExpandedRouteSheetBase);
 
 const styles = StyleSheet.create({
   container: {
+    minHeight: 360,
+    flex: 1,
     backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderStrong,
     borderTopLeftRadius: spacing.radius.xxl,
     borderTopRightRadius: spacing.radius.xxl,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    maxHeight: 560,
-    padding: spacing.cardPadding
+    paddingHorizontal: spacing.cardPadding,
+    paddingBottom: spacing.xxl
   },
   topHeader: {
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs
   },
   dragBarSlot: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Offset the close button so the grip stays optically centred.
-    paddingLeft: 38
+    alignItems: 'center'
   },
   closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: spacing.radius.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.card,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border
   },
   scrollContent: {
     paddingBottom: spacing.xxl
   },
   routeHeader: {
-    marginBottom: spacing.xl
+    marginBottom: spacing.lg
   },
   titleBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.xs
   },
   bestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: colors.primarySoft,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
@@ -333,16 +340,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   bestBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   fastestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: colors.fastestSoft,
     borderWidth: 1,
     borderColor: colors.fastestBorder,
@@ -351,11 +356,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   fastestBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.fastest,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
+    color: colors.fastest
   },
   altBadge: {
     backgroundColor: colors.neutral,
@@ -364,126 +367,117 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   altBadgeText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    fontWeight: typography.weights.bold,
-    color: colors.text.secondary,
-    textTransform: 'uppercase'
+    fontSize: 10,
+    fontWeight: typography.weights.semibold,
+    color: colors.text.secondary
   },
   routeName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.semibold,
+    color: colors.text.secondary,
     flex: 1
   },
   etaRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.lg,
-    marginTop: spacing.xs
+    gap: spacing.md
   },
   etaHero: {
     fontSize: typography.sizes.hero,
-    lineHeight: typography.line.hero,
+    lineHeight: 38,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   etaUnit: {
-    fontSize: typography.sizes.body,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+    fontSize: typography.sizes.h3,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary
   },
   distHero: {
-    fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
-    fontWeight: typography.weights.semibold,
-    color: colors.text.body
+    fontSize: typography.sizes.h2,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
   },
   metricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
-    marginBottom: spacing.xl
+    gap: spacing.sm,
+    marginBottom: spacing.lg
   },
   metricCell: {
-    // `flexBasis` keeps two cells per row without a hardcoded percentage width
-    // that breaks when the gap changes.
-    flexGrow: 1,
-    flexBasis: '46%',
+    flex: 1,
+    minWidth: '47%',
     backgroundColor: colors.card,
-    borderRadius: spacing.radius.md,
+    borderRadius: spacing.radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg
+    padding: spacing.md
+  },
+  metricHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4
   },
   metricLabel: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.normal
+    letterSpacing: 0.5
   },
   metricVal: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
-    fontWeight: typography.weights.bold,
-    marginTop: 3,
-    textTransform: 'capitalize'
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.bold
   },
   whyBox: {
     backgroundColor: colors.primaryFaint,
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
+    borderColor: colors.primaryBorderSoft,
     borderRadius: spacing.radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl
+    padding: spacing.md,
+    marginBottom: spacing.lg
   },
   whyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs
+    gap: spacing.xs,
+    marginBottom: 4
   },
   whyHeaderText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.primary,
-    letterSpacing: typography.tracking.normal
+    letterSpacing: 0.5
   },
   whyText: {
     fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    lineHeight: 18,
     color: colors.text.body
   },
   routesSection: {
-    marginBottom: spacing.xl
+    marginBottom: spacing.lg
   },
   sectionTitle: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.normal,
-    marginBottom: spacing.md
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm
   },
   routeCard: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    padding: spacing.lg,
-    minHeight: spacing.touchTargetMin,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    gap: spacing.md
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm
   },
   routeCardSelected: {
-    backgroundColor: colors.primaryFaint,
-    borderColor: colors.primary
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaint
   },
   routeCardLeft: {
     flex: 1
@@ -491,57 +485,55 @@ const styles = StyleSheet.create({
   routeCardBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: 3
+    gap: spacing.xs,
+    marginBottom: 2
   },
   inlineTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3
+    gap: 3,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4
   },
   routeCardBestTag: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.primary
   },
   routeCardFastestTag: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.extrabold,
     color: colors.fastest
   },
   routeCardAltTag: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 9,
     fontWeight: typography.weights.bold,
-    color: colors.text.secondary
+    color: colors.text.muted
   },
   routeCardName: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.bold,
     color: colors.text.primary,
     flex: 1
   },
   routeCardSub: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary
+    fontSize: typography.sizes.caption,
+    color: colors.text.secondary,
+    marginTop: 2
   },
   routeCardRight: {
     alignItems: 'flex-end'
   },
   routeCardEta: {
     fontSize: typography.sizes.h3,
-    lineHeight: typography.line.h3,
     fontWeight: typography.weights.extrabold,
     color: colors.text.bright
   },
   routeCardEtaUnit: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.regular,
-    color: colors.text.secondary
+    fontSize: 11,
+    color: colors.primary
   },
   selectedTag: {
     flexDirection: 'row',
@@ -550,89 +542,84 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   selectedTagText: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 10,
     fontWeight: typography.weights.bold,
     color: colors.primary
   },
   maneuversSection: {
-    marginBottom: spacing.xl
+    marginBottom: spacing.lg
   },
   maneuverItem: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.radius.md,
-    padding: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.md
   },
   maneuverNum: {
     width: 24,
     height: 24,
-    borderRadius: spacing.radius.sm,
-    backgroundColor: colors.neutral,
+    borderRadius: 12,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.lg
+    borderWidth: 1,
+    borderColor: colors.border
   },
   maneuverNumText: {
-    fontSize: typography.sizes.micro,
-    fontWeight: typography.weights.extrabold,
-    color: colors.primary
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
+    color: colors.text.secondary
   },
   maneuverTextCol: {
     flex: 1
   },
   maneuverInstruction: {
-    fontSize: typography.sizes.caption,
-    lineHeight: typography.line.caption,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.semibold,
     color: colors.text.primary
   },
   maneuverRoad: {
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
-    color: colors.text.secondary,
+    fontSize: typography.sizes.caption,
+    color: colors.text.muted,
     marginTop: 1
   },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: spacing.radius.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg
+    borderRadius: spacing.radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md
   },
   errorText: {
-    flex: 1,
-    fontSize: typography.sizes.micro,
-    lineHeight: typography.line.micro,
+    fontSize: 11,
     color: colors.dangerBright,
-    fontWeight: typography.weights.semibold
+    flex: 1
   },
   startButton: {
-    backgroundColor: colors.primary,
-    borderRadius: spacing.radius.xl,
-    minHeight: spacing.touchTargetComfortable,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md
+    backgroundColor: colors.primary,
+    borderRadius: spacing.radius.xl,
+    paddingVertical: spacing.md,
+    minHeight: 52,
+    gap: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10
   },
   startButtonLoading: {
-    opacity: 0.75
+    opacity: 0.8
   },
   startButtonText: {
-    fontSize: typography.sizes.h3,
+    fontSize: typography.sizes.body,
     fontWeight: typography.weights.extrabold,
     color: colors.text.onAccent,
-    letterSpacing: typography.tracking.normal,
-    textTransform: 'uppercase'
+    letterSpacing: 0.5
   }
 });
