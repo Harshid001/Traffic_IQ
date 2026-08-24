@@ -38,11 +38,7 @@ const TabBarBase: React.FC = () => {
               hitSlop={6}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Icon
-                  size={19}
-                  color={isActive ? colors.primaryBright : colors.text.muted}
-                  strokeWidth={isActive ? 2.5 : 1.8}
-                />
+                <Icon size={19} color={isActive ? colors.primaryBright : colors.text.muted} strokeWidth={isActive ? 2.5 : 1.8} />
                 {isLiveNav && <View style={styles.liveDot} />}
               </View>
               <Text numberOfLines={1} style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -64,8 +60,7 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 10,
-    zIndex: 60,
-    pointerEvents: 'box-none'
+    zIndex: 60
   },
   tabBar: {
     minHeight: 64,
