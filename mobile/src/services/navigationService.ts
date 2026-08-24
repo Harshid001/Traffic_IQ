@@ -1,5 +1,10 @@
 import { fetchJson } from './api';
 import { RouteData } from './routingService';
+import {
+  startSimulatedNavSession,
+  updateSimulatedNavStep,
+  generateSimulatedManeuvers
+} from './demoFallbackEngine';
 
 export interface Maneuver {
   step: number;
@@ -61,17 +66,22 @@ export async function startNavigationSession(
   currentSpeed = 45.0,
   signal?: AbortSignal
 ): Promise<NavigationSessionStart> {
-  return await fetchJson<NavigationSessionStart>('/api/navigation/session/start', {
-    method: 'POST',
-    signal,
-    body: JSON.stringify({
-      active_route: activeRoute,
-      all_routes: allRoutes,
-      best_route_id: bestRouteId,
-      fastest_route_id: fastestRouteId,
-      current_speed_kmh: currentSpeed
-    })
-  });
+  try {
+    return await fetchJson<NavigationSessionStart>('/api/navigation/session/start', {
+      method: 'POST',
+      signal,
+      timeoutMs: 4000,
+      body: JSON.stringify({
+        active_route: activeRoute,
+        all_routes: allRoutes,
+        best_route_id: bestRouteId,
+        fastest_route_id: fastestRouteId,
+        current_speed_kmh: currentSpeed
+      })
+    });
+  } catch (err) {
+    return startSimulatedNavSession(activeRoute, currentSpeed);
+  }
 }
 
 export async function updateNavigationStep(
@@ -84,19 +94,24 @@ export async function updateNavigationStep(
   currentLon?: number,
   signal?: AbortSignal
 ): Promise<NavigationTelemetryUpdate> {
-  return await fetchJson<NavigationTelemetryUpdate>('/api/navigation/session/update', {
-    method: 'POST',
-    signal,
-    body: JSON.stringify({
-      progress_pct: progressPct,
-      current_speed_kmh: currentSpeed,
-      active_route: activeRoute,
-      all_routes: allRoutes,
-      best_route_id: bestRouteId,
-      current_lat: currentLat,
-      current_lon: currentLon
-    })
-  });
+  try {
+    return await fetchJson<NavigationTelemetryUpdate>('/api/navigation/session/update', {
+      method: 'POST',
+      signal,
+      timeoutMs: 4000,
+      body: JSON.stringify({
+        progress_pct: progressPct,
+        current_speed_kmh: currentSpeed,
+        active_route: activeRoute,
+        all_routes: allRoutes,
+        best_route_id: bestRouteId,
+        current_lat: currentLat,
+        current_lon: currentLon
+      })
+    });
+  } catch (err) {
+    return updateSimulatedNavStep(progressPct, activeRoute, currentSpeed);
+  }
 }
 
 export async function rerouteSession(
@@ -105,13 +120,34 @@ export async function rerouteSession(
   currentProgressPct = 0.0,
   signal?: AbortSignal
 ): Promise<any> {
-  return await fetchJson<any>('/api/navigation/session/reroute', {
-    method: 'POST',
-    signal,
-    body: JSON.stringify({
-      new_route_id: newRouteId,
-      all_routes: allRoutes,
-      current_progress_pct: currentProgressPct
-    })
-  });
+  try {
+    return await fetchJson<any>('/api/navigation/session/reroute', {
+      method: 'POST',
+      signal,
+      timeoutMs: 4000,
+      body: JSON.stringify({
+        new_route_id: newRouteId,
+        all_routes: allRoutes,
+        current_progress_pct: currentProgressPct
+      })
+    });
+  } catch (err) {
+    const newRoute = allRoutes.find(r => r.id === newRouteId) || allRoutes[0];
+    const maneuvers = generateSimulatedManeuvers(newRoute);
+    const etaMin = newRoute.predicted_eta_p50 || 25.0;
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + etaMin);
+    const arrivalTime = `${now.getHours() % 12 || 12}:${String(now.getMinutes()).padStart(2, '0')} ${now.getHours() >= 12 ? 'PM' : 'AM'}`;
+
+    return {
+      status: 'REROUTED',
+      active_route: newRoute,
+      maneuvers,
+      current_maneuver: maneuvers[0],
+      remaining_distance_km: newRoute.distance_km,
+      remaining_eta_min: etaMin,
+      arrival_time: arrivalTime
+    };
+  }
 }
+

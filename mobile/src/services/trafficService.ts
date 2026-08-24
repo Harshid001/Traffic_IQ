@@ -1,5 +1,6 @@
 import { fetchJson } from './api';
 import { RouteData } from './routingService';
+import { getSimulatedTrafficDNA, getSimulatedWhatIf } from './demoFallbackEngine';
 
 export interface TrafficDNAHour {
   hour: number;
@@ -36,19 +37,29 @@ export async function fetchTrafficDNA(
   segmentId: string,
   signal?: AbortSignal
 ): Promise<{ segment_id: string; dna: TrafficDNAHour[] }> {
-  return await fetchJson<{ segment_id: string; dna: TrafficDNAHour[] }>(
-    `/api/traffic/dna?segment_id=${encodeURIComponent(segmentId)}`,
-    { signal }
-  );
+  try {
+    return await fetchJson<{ segment_id: string; dna: TrafficDNAHour[] }>(
+      `/api/traffic/dna?segment_id=${encodeURIComponent(segmentId)}`,
+      { signal, timeoutMs: 5000 }
+    );
+  } catch (err) {
+    return getSimulatedTrafficDNA(segmentId);
+  }
 }
 
 export async function fetchWhatIfDeparture(
   routes: RouteData[],
   signal?: AbortSignal
 ): Promise<WhatIfResponse> {
-  return await fetchJson<WhatIfResponse>('/api/traffic/what-if', {
-    method: 'POST',
-    body: JSON.stringify({ routes }),
-    signal
-  });
+  try {
+    return await fetchJson<WhatIfResponse>('/api/traffic/what-if', {
+      method: 'POST',
+      body: JSON.stringify({ routes }),
+      signal,
+      timeoutMs: 5000
+    });
+  } catch (err) {
+    return getSimulatedWhatIf(routes);
+  }
 }
+

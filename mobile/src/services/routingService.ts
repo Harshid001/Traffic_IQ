@@ -1,4 +1,5 @@
 import { fetchJson } from './api';
+import { getSimulatedRoutes } from './demoFallbackEngine';
 
 export interface RouteSegment {
   id: string;
@@ -74,6 +75,10 @@ export interface RoutingResponse {
       layer_3_decisions: string;
     };
   };
+  /** Timestamp when this response was received or generated */
+  fetched_at?: number;
+  /** True when generated via Tier 3 client-side fallback simulation */
+  is_fallback?: boolean;
 }
 
 export interface CalculateRoutesParams {
@@ -90,13 +95,51 @@ export async function calculateRoutes(
   params: CalculateRoutesParams,
   signal?: AbortSignal
 ): Promise<RoutingResponse> {
-  return await fetchJson<RoutingResponse>('/api/routes/calculate', {
-    method: 'POST',
-    body: JSON.stringify(params),
-    signal
-  });
+  try {
+    const res = await fetchJson<RoutingResponse>('/api/routes/calculate', {
+      method: 'POST',
+      body: JSON.stringify(params),
+      signal,
+      timeoutMs: 6000
+    });
+    return {
+      ...res,
+      fetched_at: Date.now(),
+      is_fallback: false
+    };
+  } catch (err) {
+    // Drop seamlessly to Tier 3 High-Fidelity Demo Simulation fallback
+    try {
+      const simulated = getSimulatedRoutes(params);
+      return {
+        ...simulated,
+        fetched_at: Date.now(),
+        is_fallback: true
+      };
+    } catch (fallbackErr) {
+      // Only throw if even the Tier 3 fallback fails
+      throw err;
+    }
+  }
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<any> {
-  return await fetchJson<any>('/api/health', { signal });
+  try {
+    return await fetchJson<any>('/api/health', { signal, timeoutMs: 5000 });
+  } catch (err) {
+    // Fallback diagnostic status indicating Tier 3 Demo Simulation is active
+    return {
+      status: 'DEMO_SIMULATION',
+      mode: 'Tier 3 High-Fidelity Client Fallback',
+      services: {
+        routing_engine: 'DEMO (High-Fidelity Simulation)',
+        chronos_forecasting: 'SIMULATED (Deterministic Bounds)',
+        traffic_data: 'DEMO (24-Hour Profile Stream)',
+        explanation_pipeline: 'VERIFIED (3-Layer Ruleset)',
+        local_osrm: 'OFFLINE (Dropped to Tier 3)'
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
 }
+

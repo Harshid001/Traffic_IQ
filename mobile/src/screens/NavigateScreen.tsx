@@ -158,7 +158,7 @@ export const NavigateScreen: React.FC = () => {
       {/* Bottom Sheet Drawer */}
       <BottomSheetContainer />
 
-      {/* Corridor picker */}
+            {/* Corridor picker */}
       <Modal
         visible={pickerOpen}
         transparent
@@ -172,7 +172,10 @@ export const NavigateScreen: React.FC = () => {
           accessibilityLabel="Close destination picker"
         >
           <Pressable style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
-            <Text style={styles.modalHeader}>WHERE ARE YOU GOING?</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalHeader}>WHERE ARE YOU GOING?</Text>
+              <Text style={styles.modalSubHeader}>Curated Benchmark Corridors</Text>
+            </View>
             {CORRIDORS.map((corridor) => {
               const isSelected = corridor.id === selectedCorridor;
               return (
@@ -183,12 +186,17 @@ export const NavigateScreen: React.FC = () => {
                   style={[styles.pickerItem, isSelected && styles.pickerItemSelected]}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isSelected }}
-                  accessibilityLabel={`${corridor.name}, ${corridor.city}`}
+                  accessibilityLabel={`${corridor.name}, ${corridor.city}, ${corridor.tag}`}
                 >
                   <View style={styles.pickerTextCol}>
-                    <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
-                      {corridor.name}
-                    </Text>
+                    <View style={styles.pickerTitleRow}>
+                      <Text style={[styles.pickerTitle, isSelected && styles.pickerTitleSelected]}>
+                        {corridor.name}
+                      </Text>
+                      <View style={styles.pickerTag}>
+                        <Text style={styles.pickerTagText}>{corridor.tag}</Text>
+                      </View>
+                    </View>
                     <Text style={styles.pickerCity}>{corridor.city}</Text>
                   </View>
                   {isSelected && <Check size={16} color={colors.primary} />}
@@ -297,13 +305,22 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.cardPadding
   },
+  modalHeaderRow: {
+    marginBottom: spacing.lg
+  },
   modalHeader: {
     fontSize: typography.sizes.micro,
     lineHeight: typography.line.micro,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.wide,
-    marginBottom: spacing.lg
+    letterSpacing: typography.tracking.wide
+  },
+  modalSubHeader: {
+    fontSize: typography.sizes.micro,
+    lineHeight: typography.line.micro,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+    marginTop: 2
   },
   pickerItem: {
     flexDirection: 'row',
@@ -325,11 +342,32 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: spacing.md
   },
+  pickerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm
+  },
   pickerTitle: {
     fontSize: typography.sizes.label,
     lineHeight: typography.line.label,
     fontWeight: typography.weights.bold,
-    color: colors.text.primary
+    color: colors.text.primary,
+    flex: 1
+  },
+  pickerTag: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorderSoft,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1
+  },
+  pickerTagText: {
+    fontSize: typography.sizes.micro,
+    lineHeight: typography.line.micro,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   pickerTitleSelected: {
     color: colors.primary

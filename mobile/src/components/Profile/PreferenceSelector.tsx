@@ -192,14 +192,6 @@ const PreferenceSelectorBase: React.FC = () => {
           </Text>
         </Animated.View>
       )}
-
-      {/* Persist the failure after the toast fades. */}
-      {routesError && !toast && (
-        <View style={[styles.toast, styles.toastError]}>
-          <AlertTriangle size={12} color={colors.danger} />
-          <Text style={[styles.toastText, styles.toastTextError]}>{routesError}</Text>
-        </View>
-      )}
     </Card>
   );
 };

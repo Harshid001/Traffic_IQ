@@ -5,9 +5,8 @@ import { useNavigationStore } from '../store/navigationStore';
 import { WhatIfPlanner } from '../components/Insights/WhatIfPlanner';
 import { ReliabilityScorecard } from '../components/Insights/ReliabilityScorecard';
 import { ProvenanceTracker } from '../components/Insights/ProvenanceTracker';
-import { ErrorState } from '../components/Common/ErrorState';
-import { EmptyState } from '../components/Common/EmptyState';
-import { LoadingState } from '../components/Common/LoadingState';
+import { DataStateWrapper } from '../components/Common/DataStateWrapper';
+import { InsightsSkeleton } from '../components/Common/SkeletonLoader';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -27,57 +26,46 @@ export const InsightsScreen: React.FC = () => {
     return routes.find(r => r.id === selectedRouteId) || routes[0];
   }, [routingData, selectedRouteId]);
 
-  if (isLoadingRoutes && !selectedRoute) {
-    return (
-      <LoadingState variant="screen" message="Loading departure insights & reliability bounds..." />
-    );
-  }
-
-  if (routesError) {
-    return (
-      <View style={styles.stateWrapper}>
-        <ErrorState title="Insights unavailable" message={routesError} onRetry={retry} />
-      </View>
-    );
-  }
-
-  if (!selectedRoute) {
-    return (
-      <View style={styles.stateWrapper}>
-        <EmptyState
-          title="No route to analyse"
-          message="Calculate a corridor to see departure planning and reliability bounds."
-          icon={<Sparkles size={20} color={colors.text.secondary} />}
-          actionLabel="Calculate"
-          onAction={retry}
-        />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
+    <DataStateWrapper
+      isLoading={isLoadingRoutes && !selectedRoute}
+      skeleton={<InsightsSkeleton />}
+      error={routesError}
+      errorTitle="Insights unavailable"
+      isEmpty={!isLoadingRoutes && !routesError && !selectedRoute}
+      emptyTitle="No route to analyse"
+      emptyMessage="Calculate a corridor to see departure planning and reliability bounds."
+      emptyIcon={<Sparkles size={20} color={colors.text.secondary} />}
+      isStale={!!routingData?.is_fallback}
+      lastUpdatedAt={routingData?.fetched_at}
+      onRetry={retry}
+      retryLabel="Retry"
     >
-      {/* Header */}
-      <View style={styles.screenHeader}>
-        <View style={styles.titleRow}>
-          <Sparkles size={16} color={colors.primary} />
-          <Text style={styles.titleText}>Deep Insights</Text>
-        </View>
-        <Text style={styles.subText}>
-          What-If departures, reliability bounds and provenance
-        </Text>
-      </View>
+      {selectedRoute && (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.screenHeader}>
+            <View style={styles.titleRow}>
+              <Sparkles size={16} color={colors.primary} />
+              <Text style={styles.titleText}>Deep Insights</Text>
+            </View>
+            <Text style={styles.subText}>
+              What-If departures, reliability bounds and provenance
+            </Text>
+          </View>
 
-      <WhatIfPlanner />
+          <WhatIfPlanner />
 
-      <ReliabilityScorecard route={selectedRoute} />
+          <ReliabilityScorecard route={selectedRoute} />
 
-      <ProvenanceTracker />
-    </ScrollView>
+          <ProvenanceTracker />
+        </ScrollView>
+      )}
+    </DataStateWrapper>
   );
 };
 

@@ -20,7 +20,7 @@ const HeaderBase: React.FC = () => {
   const { dialogMaxWidth, isNarrow } = useLayout();
 
   const currentCorridor = getCorridor(selectedCorridor);
-  const isDemo = trafficMode === 'DEMO';
+  const isDemo = trafficMode === 'DEMO' || !useNavigationStore.getState().routingData || useNavigationStore.getState().routingData?.traffic_provenance === 'DEMO';
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -32,7 +32,7 @@ const HeaderBase: React.FC = () => {
 
   return (
     <View style={styles.header}>
-      {/* Brand & Live Beacon */}
+      {/* Brand & Unified Status Beacon */}
       <View style={styles.brandRow}>
         <View style={styles.logoBadge}>
           <Navigation
@@ -47,14 +47,16 @@ const HeaderBase: React.FC = () => {
             <Text style={styles.brandTitle}>
               Traffic<Text style={styles.brandHighlight}>IQ</Text>
             </Text>
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
-            {isDemo && (
-              <View style={styles.demoPill}>
+            {/* Single Source of Truth Badge */}
+            {isDemo ? (
+              <View style={styles.demoPill} accessibilityLabel="Demo Simulation mode active">
                 <FlaskConical size={10} color={colors.fastest} />
-                <Text style={styles.demoText}>DEMO</Text>
+                <Text style={styles.demoText}>DEMO · SIMULATED</Text>
+              </View>
+            ) : (
+              <View style={styles.livePill} accessibilityLabel="Live TomTom traffic stream active">
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>LIVE · STREAM</Text>
               </View>
             )}
           </View>
@@ -111,7 +113,10 @@ const HeaderBase: React.FC = () => {
           accessibilityLabel="Close corridor picker"
         >
           <Pressable accessible={false} style={[styles.modalContent, { maxWidth: dialogMaxWidth }]} onPress={() => {}}>
-            <Text style={styles.modalHeader}>SELECT NAVIGATION CORRIDOR</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalHeader}>SELECT NAVIGATION CORRIDOR</Text>
+              <Text style={styles.modalSubHeader}>Curated Benchmark Presets</Text>
+            </View>
             {CORRIDORS.map((corridor) => {
               const isSelected = corridor.id === selectedCorridor;
               return (
@@ -122,17 +127,22 @@ const HeaderBase: React.FC = () => {
                   style={[styles.corridorItem, isSelected && styles.corridorItemSelected]}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isSelected }}
-                  accessibilityLabel={`${corridor.name}, ${corridor.city}`}
+                  accessibilityLabel={`${corridor.name}, ${corridor.city}, ${corridor.tag}`}
                 >
                   <View style={styles.corridorItemText}>
-                    <Text
-                      style={[
-                        styles.corridorItemTitle,
-                        isSelected && styles.corridorItemTitleSelected
-                      ]}
-                    >
-                      {corridor.name}
-                    </Text>
+                    <View style={styles.corridorItemTop}>
+                      <Text
+                        style={[
+                          styles.corridorItemTitle,
+                          isSelected && styles.corridorItemTitleSelected
+                        ]}
+                      >
+                        {corridor.name}
+                      </Text>
+                      <View style={styles.corridorTag}>
+                        <Text style={styles.corridorTagText}>{corridor.tag}</Text>
+                      </View>
+                    </View>
                     <Text style={styles.corridorItemCity}>{corridor.city}</Text>
                   </View>
                   {isSelected && <Check size={16} color={colors.primary} />}
@@ -292,13 +302,22 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.cardPadding
   },
+  modalHeaderRow: {
+    marginBottom: spacing.lg
+  },
   modalHeader: {
     fontSize: typography.sizes.micro,
     lineHeight: typography.line.micro,
     fontWeight: typography.weights.extrabold,
     color: colors.text.muted,
-    letterSpacing: typography.tracking.wide,
-    marginBottom: spacing.lg
+    letterSpacing: typography.tracking.wide
+  },
+  modalSubHeader: {
+    fontSize: typography.sizes.micro,
+    lineHeight: typography.line.micro,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+    marginTop: 2
   },
   corridorItem: {
     flexDirection: 'row',
@@ -320,11 +339,32 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: spacing.md
   },
+  corridorItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm
+  },
   corridorItemTitle: {
     fontSize: typography.sizes.label,
     lineHeight: typography.line.label,
     fontWeight: typography.weights.bold,
-    color: colors.text.primary
+    color: colors.text.primary,
+    flex: 1
+  },
+  corridorTag: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primaryBorderSoft,
+    borderRadius: spacing.radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1
+  },
+  corridorTagText: {
+    fontSize: typography.sizes.micro,
+    lineHeight: typography.line.micro,
+    fontWeight: typography.weights.bold,
+    color: colors.primary
   },
   corridorItemTitleSelected: {
     color: colors.primary
