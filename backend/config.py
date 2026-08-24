@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -10,23 +11,35 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Predictive Explainable Traffic Intelligence"
     APP_VERSION: str = "2.0.0"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    DEBUG: bool = False
     
     # Security & CORS
-    ALLOWED_ORIGINS: List[str] = (
-        [o.strip() for o in os.getenv("ALLOWED_ORIGINS").split(",") if o.strip()]
-        if os.getenv("ALLOWED_ORIGINS")
-        else [
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5174",
-            "http://localhost:8000",
-            "http://localhost:8005",
-            "http://127.0.0.1:8005",
-            "*",
-        ]
-    )
+    ALLOWED_ORIGINS: Union[List[str], str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:8000",
+        "http://localhost:8005",
+        "http://127.0.0.1:8005",
+        "*",
+    ]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return parsed
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     API_KEY: str = os.getenv("TRAFFICIQ_API_KEY", "trafficiq-dev-key")
     REQUIRE_API_KEY: bool = os.getenv("REQUIRE_API_KEY", "false").lower() in ("true", "1", "yes")
     
