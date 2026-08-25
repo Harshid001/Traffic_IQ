@@ -35,6 +35,8 @@ interface SettingsState {
   aiModel: string;
   /** Selected AI Provider */
   aiProvider: 'auto' | 'gemini' | 'ollama';
+  /** Custom Remote Server / Tunnel URL to reach laptop's local AI from anywhere */
+  customBackendUrl: string;
 
   setPreferenceProfile: (profile: PreferenceProfile) => void;
   setTrafficMode: (mode: 'DEMO' | 'REAL') => void;
@@ -43,6 +45,7 @@ interface SettingsState {
   setGeminiApiKey: (key: string) => void;
   setAiModel: (model: string) => void;
   setAiProvider: (provider: 'auto' | 'gemini' | 'ollama') => void;
+  setCustomBackendUrl: (url: string) => void;
   toggleBackgroundAlerts: () => void;
   toggleSound: () => void;
   refreshHealth: () => Promise<void>;
@@ -68,6 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
       geminiApiKey: '',
       aiModel: 'gemini-2.0-flash',
       aiProvider: 'auto',
+      customBackendUrl: '',
 
       setPreferenceProfile: (preferenceProfile) => set({ preferenceProfile }),
       setTrafficMode: (trafficMode) => set({ trafficMode }),
@@ -76,6 +80,7 @@ export const useSettingsStore = create<SettingsState>()(
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: geminiApiKey.trim() }),
       setAiModel: (aiModel) => set({ aiModel }),
       setAiProvider: (aiProvider) => set({ aiProvider }),
+      setCustomBackendUrl: (customBackendUrl) => set({ customBackendUrl: customBackendUrl.trim() }),
       toggleBackgroundAlerts: () =>
         set((state) => ({ backgroundAlertsEnabled: !state.backgroundAlertsEnabled })),
       toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),

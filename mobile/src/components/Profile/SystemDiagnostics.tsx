@@ -48,9 +48,14 @@ const SystemDiagnosticsBase: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
+  const customBackendUrl = useSettingsStore(s => s.customBackendUrl);
+  const setCustomBackendUrl = useSettingsStore(s => s.setCustomBackendUrl);
+
   const [inputKey, setInputKey] = useState(geminiApiKey);
+  const [inputUrl, setInputUrl] = useState(customBackendUrl);
   const [showKey, setShowKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [urlSaveSuccess, setUrlSaveSuccess] = useState(false);
   const [isTestingAi, setIsTestingAi] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -62,6 +67,16 @@ const SystemDiagnosticsBase: React.FC = () => {
   useEffect(() => {
     setInputKey(geminiApiKey);
   }, [geminiApiKey]);
+
+  useEffect(() => {
+    setInputUrl(customBackendUrl);
+  }, [customBackendUrl]);
+
+  const handleSaveUrl = useCallback(() => {
+    setCustomBackendUrl(inputUrl);
+    setUrlSaveSuccess(true);
+    setTimeout(() => setUrlSaveSuccess(false), 2500);
+  }, [inputUrl, setCustomBackendUrl]);
 
   const doRefresh = useCallback(async () => {
     await refreshHealth();
@@ -232,6 +247,45 @@ const SystemDiagnosticsBase: React.FC = () => {
                 </Text>
               </View>
             )}
+          </View>
+
+          {/* Remote Laptop / Public Tunnel Section (for 4G/5G mobile connection without same Wi-Fi) */}
+          <View style={styles.keyInputContainer}>
+            <Text style={styles.keyInputLabel}>Remote Laptop URL (Public Tunnel / 4G Data):</Text>
+            <View style={styles.keyInputRow}>
+              <Server size={15} color={colors.text.muted} style={styles.keyIcon} />
+              <TextInput
+                style={styles.keyInput}
+                value={inputUrl}
+                onChangeText={setInputUrl}
+                placeholder="e.g. https://your-tunnel.loca.lt or http://192.168.1.147:8005"
+                placeholderTextColor={colors.text.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={styles.keyActionRow}>
+              <TouchableOpacity
+                style={[styles.saveKeyBtn, urlSaveSuccess && styles.saveKeyBtnSuccess]}
+                onPress={handleSaveUrl}
+                activeOpacity={0.8}
+              >
+                {urlSaveSuccess ? (
+                  <>
+                    <CheckCircle2 size={13} color="#FFF" />
+                    <Text style={styles.saveKeyBtnText}>Connected & Saved!</Text>
+                  </>
+                ) : (
+                  <>
+                    <Zap size={13} color="#FFF" />
+                    <Text style={styles.saveKeyBtnText}>Save Laptop URL</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.aiFooterHelp}>
+              💡 Use this to connect your mobile app anywhere over 4G/5G to your laptop's local Phi-4-mini.
+            </Text>
           </View>
 
           {/* Cloud Gemini Section */}

@@ -350,6 +350,12 @@ export function getOllamaCandidateUrls(): string[] {
  */
 export function getBackendCandidateUrls(): string[] {
   const urls: string[] = [];
+  try {
+    const customUrl = useSettingsStore.getState().customBackendUrl?.trim();
+    if (customUrl) {
+      urls.push(customUrl.replace(/\/+$/, ''));
+    }
+  } catch {}
   if (API_BASE_URL) {
     urls.push(API_BASE_URL.replace(/\/+$/, ''));
   }
