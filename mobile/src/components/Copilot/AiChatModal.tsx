@@ -63,13 +63,14 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
   useEffect(() => {
     if (visible && messages.length === 0) {
       const bestName = selectedRoute?.name || 'your destination';
-      const eta = selectedRoute?.predicted_eta_p50 || 28;
+      const eta = selectedRoute?.predicted_eta_p50 ? Math.round(selectedRoute.predicted_eta_p50) : 28;
       const initialGreeting: ChatMessage = {
         id: 'msg-0',
         sender: 'copilot',
-        text: `Hello! I'm your local **TrafficIQ Copilot** powered by **Phi-4-mini**. I'm monitoring **${routingData?.corridor_name || 'your corridor'}** (~${eta} mins via ${bestName}). How can I assist your drive?`,
+        text: `Hello! I'm your real-time **TrafficIQ Copilot** powered by **Phi-4-mini**. I am actively monitoring **${routingData?.corridor_name || 'your corridor'}** (~${eta} mins via ${bestName}). How can I assist your drive?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        model: 'phi4-mini'
+        model: 'phi4-mini',
+        provenance: 'LOCAL OLLAMA (phi4-mini)'
       };
       setMessages([initialGreeting]);
     }
@@ -87,6 +88,12 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
+      // Prepare conversation history to maintain multi-turn memory
+      const currentHistory = messages.map(m => ({
+        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.text
+      }));
+
       setMessages(prev => [...prev, userMsg]);
       setInputQuery('');
       setIsLoading(true);
@@ -94,7 +101,12 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
       const routeContext = buildRouteChatContext(routingData, selectedRouteId);
 
       try {
-        const res = await askRouteCopilot(query, routingData?.corridor_name, routeContext);
+        const res = await askRouteCopilot(
+          query,
+          routingData?.corridor_name,
+          routeContext,
+          currentHistory
+        );
         const copilotMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
@@ -104,19 +116,21 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
           provenance: res.provenance
         };
         setMessages(prev => [...prev, copilotMsg]);
-      } catch {
+      } catch (err: any) {
         const errorMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
-          text: 'Unable to reach local model right now. Recommended route remains optimal with steady travel time.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          text: 'Phi-4-mini connection issue: Could not establish link with local Ollama service at localhost:11434.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          model: 'offline',
+          provenance: 'CONNECTION ERROR'
         };
         setMessages(prev => [...prev, errorMsg]);
       } finally {
         setIsLoading(false);
       }
     },
-    [inputQuery, isLoading, routingData, selectedRoute, fastestRoute]
+    [inputQuery, isLoading, messages, routingData, selectedRouteId]
   );
 
   const resetChat = () => {

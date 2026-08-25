@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { fetchJson } from './api';
+import { API_BASE_URL, fetchJson } from './api';
 import { RouteData, RoutingResponse } from './routingService';
 
 export interface ChatMessage {
@@ -9,6 +9,11 @@ export interface ChatMessage {
   timestamp: string;
   model?: string;
   provenance?: string;
+}
+
+export interface ChatHistoryItem {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
 export interface RouteChatContext {
@@ -30,7 +35,7 @@ export interface ChatResponse {
   response: string;
   model: string;
   provenance: string;
-  status: string;
+  status: 'success' | 'error' | 'unavailable';
 }
 
 /**
@@ -75,9 +80,19 @@ export function buildRouteChatContext(
 }
 
 /**
- * Resolves local Ollama URL based on running platform.
+ * Resolves local Ollama URL based on running platform and active host.
  */
 function resolveOllamaUrl(): string {
+  try {
+    if (API_BASE_URL && (API_BASE_URL.includes('192.168.') || API_BASE_URL.includes('10.') || API_BASE_URL.includes('172.'))) {
+      const match = API_BASE_URL.match(/https?:\/\/([^:/]+)/);
+      if (match && match[1]) {
+        return `http://${match[1]}:11434`;
+      }
+    }
+  } catch {
+    // fallback
+  }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:11434';
   }
@@ -91,6 +106,7 @@ async function queryDirectOllama(
   query: string,
   corridorName?: string,
   routeContext?: RouteChatContext,
+  history?: ChatHistoryItem[],
   signal?: AbortSignal
 ): Promise<ChatResponse | null> {
   const ollamaUrl = resolveOllamaUrl();
@@ -99,7 +115,7 @@ async function queryDirectOllama(
   if (routeContext) {
     if (routeContext.best_route) {
       contextLines.push(
-        `Recommended Best Route: ${routeContext.best_route.name || 'Main Route'} | ETA: ${Math.round(routeContext.best_route.predicted_eta_p50 || 28)} min | Distance: ${routeContext.best_route.distance_km} km | Toll: ₹${routeContext.best_route.toll_cost || 0} | Congestion: ${Math.round(routeContext.best_route.avg_congestion || 30)}%`
+        `Selected Route: ${routeContext.best_route.name || 'Main Route'} | ETA: ${Math.round(routeContext.best_route.predicted_eta_p50 || 28)} min | Distance: ${routeContext.best_route.distance_km} km | Toll: ₹${routeContext.best_route.toll_cost || 0} | Congestion: ${Math.round(routeContext.best_route.avg_congestion || 30)}%`
       );
     }
     if (routeContext.fastest_route && routeContext.fastest_route.id !== routeContext.best_route?.id) {
@@ -113,13 +129,30 @@ async function queryDirectOllama(
     if (routeContext.reliability_label) {
       contextLines.push(`Reliability: ${routeContext.reliability_label}`);
     }
+    if (routeContext.current_congestion !== undefined && routeContext.forecast_20m !== undefined) {
+      contextLines.push(`Traffic: Current ${routeContext.current_congestion}%, 20m forecast ${routeContext.forecast_20m}%`);
+    }
   }
 
-  const systemInstruction = `You are TrafficIQ Copilot, an AI driving assistant. Ground your concise response in the following telemetry context.\nContext:\n${contextLines.join('\n')}`;
+  const systemInstruction = `You are TrafficIQ Copilot, an expert AI in-car driving assistant powered by Phi-4-mini.\nAnswer concisely in 2 to 4 sentences grounded on the following live telemetry context.\n\nLive Telemetry:\n${contextLines.join('\n')}`;
+
+  const turns: Array<{ role: string; content: string }> = [
+    { role: 'system', content: systemInstruction }
+  ];
+
+  if (history && history.length > 0) {
+    for (const h of history.slice(-6)) {
+      if (h.content.trim()) {
+        turns.push({ role: h.role, content: h.content });
+      }
+    }
+  }
+
+  turns.push({ role: 'user', content: query });
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     const combinedSignal = signal || controller.signal;
 
     const resp = await fetch(`${ollamaUrl}/api/chat`, {
@@ -127,12 +160,9 @@ async function queryDirectOllama(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'phi4-mini',
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: query }
-        ],
+        messages: turns,
         stream: false,
-        options: { temperature: 0.3, num_predict: 250 }
+        options: { temperature: 0.3, num_predict: 300 }
       }),
       signal: combinedSignal
     });
@@ -145,7 +175,7 @@ async function queryDirectOllama(
         return {
           response: text,
           model: 'phi4-mini',
-          provenance: 'LOCAL OLLAMA (DIRECT CLIENT)',
+          provenance: 'LOCAL OLLAMA (phi4-mini)',
           status: 'success'
         };
       }
@@ -157,122 +187,53 @@ async function queryDirectOllama(
 }
 
 /**
- * Communicates with the backend /api/routes/chat endpoint (or direct local Ollama).
+ * Communicates with the backend /api/routes/chat endpoint (powered by local Phi-4-mini)
+ * or direct local Ollama.
  */
 export async function askRouteCopilot(
   query: string,
   corridorName?: string,
   routeContext?: RouteChatContext,
+  history?: ChatHistoryItem[],
   signal?: AbortSignal
 ): Promise<ChatResponse> {
-  // 1. Try Backend API endpoint (FastAPI + Ollama / Gemini)
+  // 1. Try Backend API endpoint (FastAPI + local Phi-4-mini)
   try {
     const res = await fetchJson<ChatResponse>('/api/routes/chat', {
       method: 'POST',
       body: JSON.stringify({
         query,
         corridor_name: corridorName || routeContext?.corridor_name,
-        route_context: routeContext
+        route_context: routeContext,
+        messages: history
       }),
       signal,
       timeoutMs: 25000,
       retries: 0
     });
 
-    if (res && res.response && res.status !== 'fallback') {
+    if (res && res.response && res.status === 'success') {
       return res;
     }
-    if (res && res.response) {
+    if (res && res.response && res.status !== 'error') {
       return res;
     }
-  } catch (err) {
-    // Backend offline or timed out
+  } catch {
+    // Backend offline or unreachable
   }
 
   // 2. Try Direct Client-Side Ollama connection
-  const directRes = await queryDirectOllama(query, corridorName, routeContext, signal);
+  const directRes = await queryDirectOllama(query, corridorName, routeContext, history, signal);
   if (directRes) {
     return directRes;
   }
 
-  // 3. Honest Offline Deterministic Fallback
-  const q = query.toLowerCase();
-  const best = routeContext?.best_route;
-  const fastest = routeContext?.fastest_route;
-  const corridor = corridorName || routeContext?.corridor_name || 'your active corridor';
-
-  const bestName = best?.name || 'the recommended route';
-  const bestEta = best?.predicted_eta_p50 ? Math.round(best.predicted_eta_p50) : 28;
-  const bestDist = best?.distance_km ? best.distance_km : 18.2;
-  const bestToll = best?.toll_cost !== undefined ? best.toll_cost : 0;
-  const bestRel = best?.reliability?.reliability_score
-    ? Math.round(best.reliability.reliability_score * 100)
-    : 91;
-
-  const fastestName = fastest?.name || 'the alternative express route';
-  const fastestEta = fastest?.predicted_eta_p50 ? Math.round(fastest.predicted_eta_p50) : 26;
-  const fastestToll = fastest?.toll_cost !== undefined ? fastest.toll_cost : 0;
-
-  const bottlenecks = routeContext?.bottlenecks || [];
-  const cong = routeContext?.current_congestion || 32;
-  const fc20 = routeContext?.forecast_20m || 38;
-
-  let reply = '';
-
-  if (q.includes('why') || q.includes('recommend') || q.includes('better') || q.includes('choose')) {
-    if (best && fastest && best.id !== fastest.id) {
-      const timeDiff = Math.abs(bestEta - fastestEta);
-      const tollSavings = Math.max(0, fastestToll - bestToll);
-      reply = `**${bestName}** is recommended because it offers **${bestRel}% on-time reliability** with stable traffic flow, saving ${tollSavings > 0 ? `₹${tollSavings} in toll fees` : 'stressful bottleneck delays'} while arriving in **${bestEta} mins** (only ~${timeDiff} min difference from ${fastestName}).`;
-    } else {
-      reply = `**${bestName}** is selected as your optimal path with **${bestRel}% arrival reliability**, smooth flyover throughput, and an expected commute time of **${bestEta} mins** (${bestDist} km).`;
-    }
-  } else if (q.includes('toll') || q.includes('cost') || q.includes('price') || q.includes('free') || q.includes('fee')) {
-    if (bestToll === 0) {
-      reply = `**${bestName}** is **completely toll-free (₹0)**. If you prefer high-speed toll expressways, check the Routes tab for alternate candidate paths.`;
-    } else {
-      reply = `The toll for **${bestName}** is **₹${bestToll}**. The commute is projected at **${bestEta} mins** across ${bestDist} km.`;
-    }
-  } else if (
-    q.includes('leave') ||
-    q.includes('depart') ||
-    q.includes('when') ||
-    q.includes('time') ||
-    q.includes('forecast') ||
-    q.includes('rush') ||
-    q.includes('peak')
-  ) {
-    if (fc20 > cong + 5) {
-      reply = `Traffic is currently at **${cong}%** and projected to climb to **${fc20}%** in the next 20 minutes. We recommend **departing immediately** or waiting until after the peak evening rush (post 8:15 PM).`;
-    } else {
-      reply = `Traffic along **${corridor}** is currently steady (**${cong}% congestion**). Current travel time is **${bestEta} mins**. Optimal departure windows are now or prior to the 5:30 PM peak.`;
-    }
-  } else if (
-    q.includes('bottleneck') ||
-    q.includes('hazard') ||
-    q.includes('incident') ||
-    q.includes('delay') ||
-    q.includes('slow') ||
-    q.includes('traffic')
-  ) {
-    if (bottlenecks.length > 0) {
-      reply = `Key congestion points detected along route: **${bottlenecks.slice(0, 2).join(', ')}**. Current overall traffic category is **${best?.congestion_category || 'MODERATE'}**, with expected travel time of **${bestEta} mins**.`;
-    } else {
-      reply = `No major accidents or road blockages reported along **${bestName}**. Traffic flow is **${best?.congestion_category || 'MODERATE'}** with median speeds averaging ~52 km/h.`;
-    }
-  } else if (q.includes('fast') || q.includes('quick') || q.includes('speed')) {
-    reply = `The fastest corridor is **${fastestName}** at **${fastestEta} mins** (₹${fastestToll} tolls), compared to **${bestName}** at **${bestEta} mins** (₹${bestToll} tolls) with higher arrival predictability.`;
-  } else if (q.includes('distance') || q.includes('km') || q.includes('far') || q.includes('long')) {
-    reply = `The total drive distance for **${bestName}** is **${bestDist} km**, with an estimated duration of **${bestEta} minutes** under live conditions.`;
-  } else {
-    reply = `For **${corridor}**, **${bestName}** is currently your best route taking **${bestEta} mins** (${bestDist} km) with **${bestRel}% reliability**. Congestion is at **${cong}%** with no critical roadblocks.`;
-  }
-
+  // 3. Honest Offline Error (Zero hardcoded fake replies)
   return {
-    response: reply,
-    model: 'offline-rule-engine',
-    provenance: 'OFFLINE DETERMINISTIC (AI MODEL OFFLINE)',
-    status: 'fallback'
+    response: 'Phi-4-mini assistant is currently unreachable on Ollama (localhost:11434). Please verify Ollama is active with `ollama run phi4-mini`.',
+    model: 'offline',
+    provenance: 'OFFLINE',
+    status: 'error'
   };
 }
 

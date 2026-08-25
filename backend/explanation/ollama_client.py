@@ -153,11 +153,13 @@ class OllamaExplanationClient:
         self,
         query: str,
         route_context: Optional[Dict[str, Any]] = None,
-        corridor_name: Optional[str] = None
+        corridor_name: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None
     ) -> Dict[str, Any]:
         """
-        Provides interactive driving and navigation Q&A using local phi4-mini via Ollama
-        or Google Gemini fallback. Grounds responses on active telemetry, ETAs, tolls, and bottlenecks.
+        Provides interactive real-time driving and navigation Q&A using local Phi-4-mini via Ollama
+        (or Google Gemini cloud fallback). Strictly grounds responses on active telemetry, ETAs, tolls,
+        Chronos-2 forecast, and live bottleneck data.
         """
         context_lines = []
         if corridor_name:
@@ -168,49 +170,76 @@ class OllamaExplanationClient:
             fastest_route = route_context.get("fastest_route") or {}
             if best_route:
                 context_lines.append(
-                    f"Recommended Best Route: {best_route.get('name', 'Main Route')} | ETA: {best_route.get('predicted_eta_p50', best_route.get('eta_min', '28'))} min | "
-                    f"Distance: {best_route.get('distance_km', '18')} km | Toll: ₹{best_route.get('toll_cost', 0)} | "
+                    f"Selected/Recommended Route: {best_route.get('name', 'Main Route')} | "
+                    f"ETA: {best_route.get('predicted_eta_p50', best_route.get('eta_min', 28))} min | "
+                    f"Distance: {best_route.get('distance_km', 18)} km | "
+                    f"Toll: ₹{best_route.get('toll_cost', 0)} | "
                     f"Congestion: {best_route.get('avg_congestion', 25)}% ({best_route.get('congestion_category', 'Moderate')})"
                 )
             if fastest_route and fastest_route.get("id") != best_route.get("id"):
                 context_lines.append(
-                    f"Fastest Route: {fastest_route.get('name', 'Fastest Alternative')} | ETA: {fastest_route.get('predicted_eta_p50', fastest_route.get('eta_min', '26'))} min | "
+                    f"Fastest Alternative Route: {fastest_route.get('name', 'Fastest Alternative')} | "
+                    f"ETA: {fastest_route.get('predicted_eta_p50', fastest_route.get('eta_min', 26))} min | "
+                    f"Distance: {fastest_route.get('distance_km', 17)} km | "
                     f"Toll: ₹{fastest_route.get('toll_cost', 0)}"
                 )
             bottlenecks = route_context.get("bottlenecks") or []
             if bottlenecks:
-                context_lines.append(f"Identified Bottlenecks/Incidents: {', '.join(str(b) for b in bottlenecks[:3])}")
+                context_lines.append(f"Active Bottlenecks/Incidents: {', '.join(str(b) for b in bottlenecks[:4])}")
+            
+            segments = route_context.get("segments") or []
+            if segments:
+                seg_summary = ", ".join([f"{s.get('name')}: {s.get('congestion')}% ({s.get('current_speed')} km/h)" for s in segments[:4]])
+                context_lines.append(f"Key Segment Speeds: {seg_summary}")
+
             reliability = route_context.get("reliability_label")
             if reliability:
-                context_lines.append(f"Route Reliability Score: {reliability}")
+                context_lines.append(f"On-Time Reliability Score: {reliability}")
+
+            current_cong = route_context.get("current_congestion")
+            fc_20m = route_context.get("forecast_20m")
+            if current_cong is not None and fc_20m is not None:
+                context_lines.append(f"Traffic Forecast: Current congestion {current_cong}%, projected {fc_20m}% in 20 mins.")
 
         context_str = "\n".join(context_lines) if context_lines else "No specific corridor selected."
 
         system_instruction = (
-            "You are TrafficIQ Copilot, an AI in-car driving assistant.\n"
-            "You assist drivers with real-time navigation advice, traffic congestion analysis, bottleneck avoidance, departure timings, and route comparisons.\n\n"
+            "You are TrafficIQ Copilot, an expert AI in-car driving assistant powered by local Phi-4-mini.\n"
+            "You assist drivers with real-time navigation advice, traffic congestion analysis, bottleneck avoidance, departure timings, tolls, and route trade-offs.\n\n"
             "Guidelines:\n"
-            "1. Answer the driver's query concisely and directly in 2 to 4 sentences.\n"
-            "2. Ground your advice on the provided Route Context (mention exact route names, ETA minutes, delay percentages, and tolls when applicable).\n"
-            "3. Do not invent facts not present in the context.\n"
-            "4. Keep the tone crisp, confident, and driver-friendly.\n\n"
+            "1. Answer concisely and conversationally in 2 to 4 crisp sentences.\n"
+            "2. Ground your advice strictly on the provided Live Route Context (refer to exact route names, ETA minutes, tolls in ₹, congestion %, and segment bottlenecks).\n"
+            "3. Do not fabricate routes or imaginary road names not in the context.\n"
+            "4. Keep the tone confident, helpful, and safe for drivers.\n\n"
             f"Live Route Context:\n{context_str}"
         )
 
-        # 1. Attempt Local Ollama /api/chat
+        # Build conversation turns
+        chat_turns: List[Dict[str, str]] = [{"role": "system", "content": system_instruction}]
+        
+        if messages:
+            # Include recent chat history (last 8 messages for context retention)
+            for m in messages[-8:]:
+                r = m.get("role", "user")
+                c = m.get("content", "").strip()
+                if c and r in ("user", "assistant"):
+                    chat_turns.append({"role": r, "content": c})
+
+        # Ensure latest query is included if not already at the end
+        if not chat_turns or chat_turns[-1].get("content") != query:
+            chat_turns.append({"role": "user", "content": query})
+
+        # 1. Attempt Local Ollama /api/chat with phi4-mini
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 chat_payload = {
                     "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_instruction},
-                        {"role": "user", "content": query}
-                    ],
+                    "messages": chat_turns,
                     "stream": False,
                     "options": {
                         "temperature": 0.3,
                         "top_p": 0.9,
-                        "num_predict": 250
+                        "num_predict": 300
                     }
                 }
                 resp = await client.post(f"{self.ollama_url}/api/chat", json=chat_payload)
@@ -225,13 +254,17 @@ class OllamaExplanationClient:
                             "status": "success"
                         }
                 
-                # Fallback to /api/generate if /api/chat had non-200
-                gen_prompt = f"{system_instruction}\n\nUser Question: {query}\nTrafficIQ Copilot Response:"
+                # Fallback to /api/generate if /api/chat had an unexpected response
+                gen_prompt = f"{system_instruction}\n\n"
+                for turn in chat_turns[1:]:
+                    gen_prompt += f"{turn['role'].capitalize()}: {turn['content']}\n"
+                gen_prompt += "Assistant:"
+                
                 gen_payload = {
                     "model": self.model,
                     "prompt": gen_prompt,
                     "stream": False,
-                    "options": {"temperature": 0.3, "top_p": 0.9, "num_predict": 250}
+                    "options": {"temperature": 0.3, "top_p": 0.9, "num_predict": 300}
                 }
                 resp2 = await client.post(f"{self.ollama_url}/api/generate", json=gen_payload)
                 if resp2.status_code == 200:
@@ -248,7 +281,8 @@ class OllamaExplanationClient:
 
         # 2. Attempt Google Gemini cloud fallback
         if settings.GEMINI_API_KEY:
-            gemini_ans = await self._call_gemini_api(query, system_instruction)
+            gemini_prompt = "\n".join([f"{t['role']}: {t['content']}" for t in chat_turns[1:]])
+            gemini_ans = await self._call_gemini_api(gemini_prompt or query, system_instruction)
             if gemini_ans:
                 return {
                     "response": gemini_ans,
@@ -257,30 +291,12 @@ class OllamaExplanationClient:
                     "status": "success"
                 }
 
-        # 3. Honest Offline Fallback (when all AI models are unreachable)
-        best_name = (route_context or {}).get("best_route", {}).get("name", "the recommended route")
-        fastest_name = (route_context or {}).get("fastest_route", {}).get("name", "the fastest alternative")
-        best_eta = (route_context or {}).get("best_route", {}).get("predicted_eta_p50", 28)
-        fastest_eta = (route_context or {}).get("fastest_route", {}).get("predicted_eta_p50", 26)
-        q_lower = query.lower()
-
-        if "why" in q_lower or "better" in q_lower or "recommend" in q_lower:
-            fallback = f"We recommend {best_name} because it provides higher on-time arrival reliability and avoids heavy junction stop-and-go delays, keeping your commute predictable at ~{best_eta} minutes."
-        elif "toll" in q_lower or "cost" in q_lower or "price" in q_lower:
-            toll = (route_context or {}).get("best_route", {}).get("toll_cost", 0)
-            fallback = f"{best_name} has a toll of ₹{toll}. Check the Routes tab for alternate bypass corridors if you wish to avoid toll plazas."
-        elif "time" in q_lower or "fast" in q_lower or "quick" in q_lower:
-            fallback = f"The fastest path is {fastest_name} with an estimated duration of {fastest_eta} minutes, while {best_name} takes {best_eta} minutes with significantly smoother traffic flow."
-        elif "bottleneck" in q_lower or "delay" in q_lower or "traffic" in q_lower:
-            fallback = f"Moderate congestion is monitored along the corridor. Leaving before the 5:30 PM evening peak will save approximately 10–14 minutes of transit time."
-        else:
-            fallback = f"Along {corridor_name or 'this corridor'}, {best_name} is your optimal choice with an estimated travel time of {best_eta} minutes and high reliability."
-
+        # 3. Transparent Offline Notice (No hard-coded fake conversation)
         return {
-            "response": fallback,
-            "model": "offline-rule-engine",
-            "provenance": "OFFLINE DETERMINISTIC (AI MODEL OFFLINE)",
-            "status": "fallback"
+            "response": "Phi-4-mini neural assistant is unreachable on Ollama (localhost:11434). Please ensure the Ollama service is active with `ollama run phi4-mini`.",
+            "model": "offline",
+            "provenance": "OFFLINE",
+            "status": "error"
         }
 
 ollama_client = OllamaExplanationClient()

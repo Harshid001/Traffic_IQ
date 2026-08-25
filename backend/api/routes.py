@@ -190,10 +190,15 @@ async def calculate_routes(req: RouteRequest):
         "explanation": explanation_res
     }
 
+class ChatHistoryItem(BaseModel):
+    role: str
+    content: str
+
 class ChatRequest(BaseModel):
     query: str
     corridor_name: Optional[str] = None
     route_context: Optional[Dict[str, Any]] = None
+    messages: Optional[List[ChatHistoryItem]] = None
 
 @router.post("/explain")
 async def explain_route(req: ExplainRequest):
@@ -208,10 +213,12 @@ async def chat_with_copilot(req: ChatRequest):
     """
     Direct interactive AI Copilot route chat powered by local phi4-mini.
     """
+    msg_dicts = [m.model_dump() for m in req.messages] if req.messages else None
     res = await ollama_client.chat_copilot(
         query=req.query,
         route_context=req.route_context,
-        corridor_name=req.corridor_name
+        corridor_name=req.corridor_name,
+        messages=msg_dicts
     )
     return res
 

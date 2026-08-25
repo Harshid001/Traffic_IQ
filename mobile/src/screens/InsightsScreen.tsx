@@ -72,10 +72,10 @@ export const InsightsScreen: React.FC = () => {
       const initialGreeting: ChatMessage = {
         id: 'msg-init',
         sender: 'copilot',
-        text: `Hello! I'm your **TrafficIQ Copilot** powered by **Phi-4-mini**. I have loaded real-time telemetry for **${corridor}** (${selectedRoute.distance_km} km, ~${eta} mins via ${bestName}). Ask me about congestion, departure timings, tolls, or route trade-offs!`,
+        text: `Hello! I'm your real-time **TrafficIQ Copilot** powered by **Phi-4-mini**. I have loaded live telemetry for **${corridor}** (${selectedRoute.distance_km} km, ~${eta} mins via ${bestName}). Ask me about congestion, departure timings, tolls, or route trade-offs!`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         model: 'phi4-mini',
-        provenance: 'Grounded Live Telemetry'
+        provenance: 'LOCAL OLLAMA (phi4-mini)'
       };
       setMessages([initialGreeting]);
     }
@@ -93,6 +93,11 @@ export const InsightsScreen: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
+      const currentHistory = messages.map(m => ({
+        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.text
+      }));
+
       setMessages(prev => [...prev, userMsg]);
       setInputQuery('');
       setIsSending(true);
@@ -100,7 +105,12 @@ export const InsightsScreen: React.FC = () => {
       const routeContext = buildRouteChatContext(routingData, selectedRouteId);
 
       try {
-        const res = await askRouteCopilot(query, routingData?.corridor_name, routeContext);
+        const res = await askRouteCopilot(
+          query,
+          routingData?.corridor_name,
+          routeContext,
+          currentHistory
+        );
         const copilotMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
@@ -110,19 +120,21 @@ export const InsightsScreen: React.FC = () => {
           provenance: res.provenance
         };
         setMessages(prev => [...prev, copilotMsg]);
-      } catch {
+      } catch (err: any) {
         const errorMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
-          text: 'Unable to process query right now. Recommended route remains optimal with steady travel time.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          text: 'Phi-4-mini connection issue: Could not reach local Ollama service at localhost:11434.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          model: 'offline',
+          provenance: 'CONNECTION ERROR'
         };
         setMessages(prev => [...prev, errorMsg]);
       } finally {
         setIsSending(false);
       }
     },
-    [inputQuery, isSending, routingData, selectedRouteId]
+    [inputQuery, isSending, messages, routingData, selectedRouteId]
   );
 
   const resetChat = useCallback(() => {

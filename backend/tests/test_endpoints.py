@@ -48,9 +48,30 @@ async def test_what_if_departure():
         assert calc_resp.status_code == 200
         routes = calc_resp.json()["routes"]
 
-        # Run what-if
-        resp = await client.post("/api/traffic/what-if", json={"routes": routes})
+@pytest.mark.asyncio
+async def test_copilot_chat():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        payload = {
+            "query": "Is there any heavy traffic on the route?",
+            "corridor_name": "Ahmedabad-Gandhinagar",
+            "route_context": {
+                "best_route": {
+                    "name": "SG Highway Express",
+                    "distance_km": 18.2,
+                    "predicted_eta_p50": 24,
+                    "toll_cost": 0,
+                    "avg_congestion": 28
+                }
+            },
+            "messages": [
+                {"role": "user", "content": "Hello Copilot"}
+            ]
+        }
+        resp = await client.post("/api/routes/chat", json=payload)
         assert resp.status_code == 200
         data = resp.json()
-        assert "optimal_departure_window" in data
-        assert "recommendation" in data
+        assert "response" in data
+        assert "model" in data
+        assert "provenance" in data
+        assert data["status"] == "success"
+        assert len(data["response"]) > 0

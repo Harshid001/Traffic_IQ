@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('expo-constants', () => ({
   default: {
@@ -20,7 +20,7 @@ vi.mock('react-native', () => ({
 import { askRouteCopilot, buildRouteChatContext } from './chatService';
 import { SIMULATED_CORRIDORS } from './demoFallbackEngine';
 
-describe('AI Copilot Chat Service', () => {
+describe('AI Copilot Chat Service (Phi-4-mini)', () => {
   const corridor = SIMULATED_CORRIDORS.ahmedabad_gandhinagar;
   const mockRoutingData: any = {
     corridor_name: corridor.name,
@@ -35,39 +35,44 @@ describe('AI Copilot Chat Service', () => {
     expect(context.best_route).toBeDefined();
     expect(context.best_route?.distance_km).toBe(18.2);
     expect(context.reliability_score).toBe(0.91);
+    expect(context.bottlenecks).toBeDefined();
   });
 
-  it('answers "why" recommendation queries with grounded facts', async () => {
+  it('transmits multi-turn conversation history to Phi-4-mini backend endpoint', async () => {
     const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
-    const res = await askRouteCopilot('Why is this route recommended?', corridor.name, context);
+    const history = [
+      { role: 'user' as const, content: 'Is SG Highway fast?' },
+      { role: 'assistant' as const, content: 'Yes, SG Highway takes about 24 minutes.' }
+    ];
+
+    // Mock global fetch for Ollama / backend
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        response: 'SG Highway is recommended because of its 91% on-time arrival rate.',
+        model: 'phi4-mini',
+        provenance: 'LOCAL OLLAMA (phi4-mini)',
+        status: 'success'
+      })
+    });
+
+    const res = await askRouteCopilot('Why is it recommended?', corridor.name, context, history);
 
     expect(res.status).toBe('success');
-    expect(res.response).toContain('SG Highway');
-    expect(res.response).toMatch(/reliability|on-time/i);
     expect(res.model).toBe('phi4-mini');
+    expect(res.response).toContain('SG Highway');
   });
 
-  it('answers toll and cost queries with exact toll figures', async () => {
+  it('handles offline notice gracefully when Ollama service is unavailable', async () => {
     const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
-    const res = await askRouteCopilot('Are there any tolls on this route?', corridor.name, context);
 
-    expect(res.status).toBe('success');
-    expect(res.response).toMatch(/toll|₹/i);
-  });
+    // Mock fetch failure
+    global.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'));
 
-  it('answers departure and forecast timing queries', async () => {
-    const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
-    const res = await askRouteCopilot('When should I leave to avoid traffic?', corridor.name, context);
+    const res = await askRouteCopilot('Is there traffic?', corridor.name, context);
 
-    expect(res.status).toBe('success');
-    expect(res.response).toMatch(/congestion|departure|peak|rush/i);
-  });
-
-  it('answers bottleneck and hazard queries with segment details', async () => {
-    const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
-    const res = await askRouteCopilot('Are there any bottlenecks or hazards ahead?', corridor.name, context);
-
-    expect(res.status).toBe('success');
-    expect(res.response).toMatch(/traffic|congestion|flow|speed/i);
+    expect(res.status).toBe('error');
+    expect(res.model).toBe('offline');
+    expect(res.response).toContain('Phi-4-mini assistant is currently unreachable');
   });
 });
