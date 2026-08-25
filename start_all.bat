@@ -30,7 +30,7 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
-start "TrafficIQ - [1] Ollama AI Engine" cmd /k "title TrafficIQ - [1] Ollama AI Engine && set OLLAMA_ORIGINS=* && set OLLAMA_HOST=0.0.0.0:11434 && echo ======================================================= && echo  TrafficIQ Ollama AI Server (phi4-mini) && echo ======================================================= && echo [*] Verifying model phi4-mini... && %OLLAMA_CMD% list && echo [*] Ollama Engine active and ready for Copilot queries. && %OLLAMA_CMD% serve"
+start "TrafficIQ - [1] Ollama AI Engine" cmd /k "title TrafficIQ - [1] Ollama AI Engine && set OLLAMA_ORIGINS=* && set OLLAMA_HOST=0.0.0.0:11434 && echo ======================================================= && echo  TrafficIQ Ollama AI Server (phi4-mini) && echo ======================================================= && echo [*] Verifying model phi4-mini... && %OLLAMA_CMD% list && echo. && echo [OK] Ollama Live AI Engine is active on port 11434! && echo [OK] Ready to answer TrafficIQ queries via phi4-mini. && netstat -ano | findstr /R /C:\":11434 .*LISTENING\" >nul || %OLLAMA_CMD% serve"
 
 ping -n 2 127.0.0.1 >nul 2>&1
 
