@@ -17,13 +17,12 @@ const resolveBaseUrl = (): string => {
   if (fromEnv) return fromEnv.replace(/\/+$/, '');
 
   const fromConfig = (Constants.expoConfig?.extra as any)?.apiBaseUrl;
-  // If an explicit non-localhost remote URL is provided (e.g. production https endpoint), use it.
   if (fromConfig && !String(fromConfig).includes('localhost') && !String(fromConfig).includes('127.0.0.1')) {
     return String(fromConfig).replace(/\/+$/, '');
   }
 
   if (Platform.OS === 'web') {
-    return fromConfig ? String(fromConfig).replace(/\/+$/, '') : `http://localhost:${DEFAULT_PORT}`;
+    return `http://localhost:${DEFAULT_PORT}`;
   }
 
   // In Expo Go on a physical device, the host PC's IP is exposed via hostUri.
@@ -42,8 +41,8 @@ const resolveBaseUrl = (): string => {
   }
 
   if (Platform.OS === 'android') {
-    // Android emulator maps the host machine to 10.0.2.2.
-    return `http://10.0.2.2:${DEFAULT_PORT}`;
+    // Default to host laptop's active Wi-Fi LAN IP address
+    return `http://192.168.1.147:${DEFAULT_PORT}`;
   }
 
   return `http://localhost:${DEFAULT_PORT}`;
