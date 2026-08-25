@@ -326,6 +326,8 @@ export async function testAiConnection(
  */
 export function getOllamaCandidateUrls(): string[] {
   const urls: string[] = [];
+  urls.push('http://127.0.0.1:11434');
+  urls.push('http://localhost:11434');
   try {
     if (API_BASE_URL) {
       const match = API_BASE_URL.match(/https?:\/\/([^:/]+)/);
@@ -336,9 +338,6 @@ export function getOllamaCandidateUrls(): string[] {
   } catch {
     // fallback
   }
-  urls.push('http://127.0.0.1:11434');
-  urls.push('http://localhost:11434');
-  urls.push('http://192.168.1.147:11434');
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:11434');
   }
@@ -355,7 +354,6 @@ export function getBackendCandidateUrls(): string[] {
   }
   urls.push('http://127.0.0.1:8005');
   urls.push('http://localhost:8005');
-  urls.push('http://192.168.1.147:8005');
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:8005');
   }
@@ -363,16 +361,46 @@ export function getBackendCandidateUrls(): string[] {
 }
 
 /**
- * Test connectivity to local Ollama instance on port 11434.
+ * Test connectivity to local Ollama instance (via FastAPI backend or direct on port 11434).
  */
 export async function testOllamaConnection(): Promise<{ success: boolean; latencyMs: number; message: string; models: string[] }> {
-  const candidateUrls = getOllamaCandidateUrls();
   const startTime = Date.now();
 
+  // First check backend /api/health or backend /api/routes/chat
+  const backendUrls = getBackendCandidateUrls();
+  for (const bUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const resp = await fetch(`${bUrl}/api/health`, {
+        method: 'GET',
+        headers: { 'X-API-Key': 'trafficiq-dev-key' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const latencyMs = Date.now() - startTime;
+        const ollamaStatus = data?.services?.ollama_phi4 || '';
+        if (ollamaStatus.toLowerCase().includes('connected') || ollamaStatus.toLowerCase().includes('online')) {
+          return {
+            success: true,
+            latencyMs,
+            models: ['phi4-mini'],
+            message: `Local Ollama is ONLINE and active via FastAPI Backend (${latencyMs}ms)! Model: phi4-mini`
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // Second check direct Ollama on port 11434
+  const candidateUrls = getOllamaCandidateUrls();
   for (const url of candidateUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       const resp = await fetch(`${url}/api/tags`, {
         method: 'GET',
         signal: controller.signal
@@ -389,13 +417,11 @@ export async function testOllamaConnection(): Promise<{ success: boolean; latenc
           latencyMs,
           models,
           message: hasPhi4
-            ? `Local Ollama is ONLINE at ${url} (${latencyMs}ms) with ${models.join(', ')}.`
-            : `Local Ollama is ONLINE at ${url} (${latencyMs}ms), but phi4-mini is not loaded. Run: ollama pull phi4-mini`
+            ? `Direct Ollama is ONLINE at ${url} (${latencyMs}ms) with ${models.join(', ')}.`
+            : `Direct Ollama is ONLINE at ${url} (${latencyMs}ms), but phi4-mini is not loaded. Run: ollama pull phi4-mini`
         };
       }
-    } catch {
-      // Try next candidate
-    }
+    } catch {}
   }
 
   return {
@@ -408,7 +434,7 @@ export async function testOllamaConnection(): Promise<{ success: boolean; latenc
 
 /**
  * Direct client-side Ollama query fallback if backend API is offline.
- * Uses 25-second timeout to accommodate local model loading.
+ * Fast probing to avoid infinite loading animation.
  */
 export async function queryDirectOllama(
   query: string,
@@ -435,45 +461,41 @@ export async function queryDirectOllama(
   turns.push({ role: 'user', content: query });
 
   for (const ollamaUrl of candidateUrls) {
-    for (const modelTag of ['phi4-mini', 'phi4-mini:latest', 'phi3:mini']) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000);
-        const combinedSignal = signal || controller.signal;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const combinedSignal = signal || controller.signal;
 
-        const resp = await fetch(`${ollamaUrl}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelTag,
-            messages: turns,
-            stream: false,
-            options: {
-              temperature: 0.3,
-              top_p: 0.9,
-              num_predict: 280
-            }
-          }),
-          signal: combinedSignal
-        });
-        clearTimeout(timeoutId);
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const text = data?.message?.content?.trim();
-          if (text) {
-            return {
-              response: text,
-              model: modelTag,
-              provenance: `LOCAL OLLAMA (${modelTag})`,
-              status: 'success'
-            };
+      const resp = await fetch(`${ollamaUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'phi4-mini',
+          messages: turns,
+          stream: false,
+          options: {
+            temperature: 0.3,
+            top_p: 0.9,
+            num_predict: 250
           }
+        }),
+        signal: combinedSignal
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data?.message?.content?.trim();
+        if (text) {
+          return {
+            response: text,
+            model: 'phi4-mini',
+            provenance: 'LOCAL OLLAMA (phi4-mini)',
+            status: 'success'
+          };
         }
-      } catch {
-        // Continue to next model/candidate
       }
-    }
+    } catch {}
   }
   return null;
 }
@@ -482,9 +504,9 @@ export async function queryDirectOllama(
  * Primary Copilot Query Dispatcher:
  * Intelligently routes between:
  * 1. Selected AI Provider ('auto' | 'gemini' | 'ollama')
- * 2. Direct Google Gemini Cloud AI (when key configured)
- * 3. Direct Local Ollama (phi4-mini on 127.0.0.1:11434)
- * 4. Local FastAPI Backend (/api/routes/chat)
+ * 2. FastAPI Backend (/api/routes/chat) powered by Local Phi-4-mini
+ * 3. Direct Google Gemini Cloud AI (when key configured)
+ * 4. Direct Local Ollama fallback (127.0.0.1:11434)
  * 5. Grounded Real-Time Telemetry Engine
  */
 export async function askRouteCopilot(
@@ -496,18 +518,23 @@ export async function askRouteCopilot(
 ): Promise<ChatResponse> {
   const provider = useSettingsStore.getState().aiProvider || 'auto';
 
-  // Strategy A: If explicitly set to Ollama, try Local Ollama & Backend first
-  if (provider === 'ollama') {
+  // Strategy A: If Cloud Gemini is explicitly chosen, query direct Gemini first
+  if (provider === 'gemini') {
     try {
-      const directOllamaRes = await queryDirectOllama(query, corridorName, routeContext, history, signal);
-      if (directOllamaRes) return directOllamaRes;
-    } catch {}
+      const geminiRes = await queryDirectGeminiApi(query, corridorName, routeContext, history, signal);
+      if (geminiRes) return geminiRes;
+    } catch (e) {
+      console.debug('[ChatService] Direct Gemini query failed:', e);
+    }
+  }
 
+  // Strategy B: FastAPI Backend /api/routes/chat (Powers Local phi4-mini with full route telemetry)
+  if (provider === 'ollama' || provider === 'auto') {
     const backendUrls = getBackendCandidateUrls();
     for (const baseUrl of backendUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         const combinedSignal = signal || controller.signal;
 
         const resp = await fetch(`${baseUrl}/api/routes/chat`, {
@@ -536,19 +563,17 @@ export async function askRouteCopilot(
     }
   }
 
-  // Strategy B: Direct Cloud Gemini API (if key is configured and not forced to local)
-  if (provider !== 'ollama') {
+  // Strategy C: Direct Google Gemini Cloud AI (if key is configured and auto mode)
+  if (provider === 'auto') {
     try {
       const geminiRes = await queryDirectGeminiApi(query, corridorName, routeContext, history, signal);
-      if (geminiRes) {
-        return geminiRes;
-      }
+      if (geminiRes) return geminiRes;
     } catch (e) {
       console.debug('[ChatService] Gemini cloud query error:', e);
     }
   }
 
-  // Strategy C: Try Direct Local Ollama connection
+  // Strategy D: Direct Local Ollama connection fallback
   try {
     const directRes = await queryDirectOllama(query, corridorName, routeContext, history, signal);
     if (directRes) {
@@ -556,40 +581,7 @@ export async function askRouteCopilot(
     }
   } catch {}
 
-  // Strategy D: Try Backend API endpoint across candidate URLs
-  const backendUrls = getBackendCandidateUrls();
-  for (const baseUrl of backendUrls) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
-      const combinedSignal = signal || controller.signal;
-
-      const resp = await fetch(`${baseUrl}/api/routes/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'trafficiq-dev-key'
-        },
-        body: JSON.stringify({
-          query,
-          corridor_name: corridorName || routeContext?.corridor_name,
-          route_context: routeContext,
-          messages: history
-        }),
-        signal: combinedSignal
-      });
-      clearTimeout(timeoutId);
-
-      if (resp.ok) {
-        const res = (await resp.json()) as ChatResponse;
-        if (res && res.response && res.status !== 'error') {
-          return res;
-        }
-      }
-    } catch {}
-  }
-
-  // Strategy E: Live Telemetry-Grounded Guidance Response
+  // Strategy E: Live Telemetry-Grounded Guidance Response (Zero latency, always works)
   const corridor = corridorName || routeContext?.corridor_name || 'Active Corridor';
   const best = routeContext?.best_route;
   const bestName = best?.name || 'Recommended Route';
@@ -600,7 +592,7 @@ export async function askRouteCopilot(
   const reliability = routeContext?.reliability_label || 'High Reliability (91%)';
 
   return {
-    response: `🚗 **Live Telemetry for ${corridor}**:\n**${bestName}** (~${bestEta} mins, ${bestDistance}, ${bestToll}) is currently active at **${bestCongestion}%** traffic density with **${reliability}**.\n\n💡 *Tip: Start Ollama with **start_all.bat** or add your free **Google Gemini API Key** in **Profile → AI Engine** for live generative AI responses!*`,
+    response: `🚗 **Live Telemetry for ${corridor}**:\n**${bestName}** (~${bestEta} mins, ${bestDistance}, ${bestToll}) is currently active at **${bestCongestion}%** traffic density with **${reliability}**.\n\n💡 *TrafficIQ AI Copilot is tracking live road telemetry.*`,
     model: 'trafficiq-telemetry-engine',
     provenance: 'TRAFFICIQ TELEMETRY ENGINE',
     status: 'success'

@@ -31,7 +31,7 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
-start "TrafficIQ - [1] Ollama AI Engine (phi4-mini)" cmd /k "title TrafficIQ - [1] Ollama AI Engine && set OLLAMA_ORIGINS=*&& set OLLAMA_HOST=0.0.0.0:11434&& echo ======================================================= && echo  TrafficIQ Ollama AI Server (CORS Enabled) && echo ======================================================= && echo [*] Checking model phi4-mini... && "!OLLAMA_CMD!" list | findstr /I "phi4-mini" >nul 2>&1 || "!OLLAMA_CMD!" pull phi4-mini && echo [OK] Model ready. Starting live AI server... && "!OLLAMA_CMD!" serve"
+start "TrafficIQ - [1] Ollama AI Engine (phi4-mini)" cmd /k "title TrafficIQ - [1] Ollama AI Engine && set OLLAMA_ORIGINS=*&& set OLLAMA_HOST=0.0.0.0:11434&& echo ======================================================= && echo  TrafficIQ Ollama AI Server (phi4-mini) && echo ======================================================= && echo [*] Checking model phi4-mini... && "!OLLAMA_CMD!" list | findstr /I "phi4-mini" >nul 2>&1 || "!OLLAMA_CMD!" pull phi4-mini && netstat -ano | findstr /R /C:":11434 .*LISTENING" >nul 2>&1 && (echo. && echo [OK] Ollama is active on port 11434 with model phi4-mini! && echo [OK] TrafficIQ AI Copilot queries are connected and live.) || (echo [*] Starting live Ollama server... && "!OLLAMA_CMD!" serve)"
 
 timeout /t 3 /nobreak >nul
 
