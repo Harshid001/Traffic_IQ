@@ -32,9 +32,6 @@
       "bundler": "metro"
     },
     "extra": {
-      "eas": {
-        "projectId": "trafficiq-mobile"
-      },
       "apiBaseUrl": "http://localhost:8005"
     },
     "plugins": []
