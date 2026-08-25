@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
 import {
   ShieldCheck,
   Zap,
@@ -20,6 +20,92 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useLayout } from '../../theme/useLayout';
+import { RouteData } from '../../services/routingService';
+
+interface CandidateRouteItemProps {
+  route: RouteData;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+const CandidateRouteItem: React.FC<CandidateRouteItemProps> = ({
+  route,
+  index,
+  isSelected,
+  onSelect
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const entryAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(entryAnim, {
+      toValue: 1,
+      duration: 300,
+      delay: Math.min(index * 60, 300),
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true
+    }).start();
+  }, [entryAnim, index]);
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, { toValue: 0.98, speed: 30, useNativeDriver: true }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, { toValue: 1, speed: 20, useNativeDriver: true }).start();
+  }, [scaleAnim]);
+
+  return (
+    <Animated.View style={{ opacity: entryAnim, transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onSelect}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.routeCard, isSelected && styles.routeCardSelected]}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: isSelected }}
+      >
+        <View style={styles.routeCardLeft}>
+          <View style={styles.routeCardBadgeRow}>
+            {route.is_best ? (
+              <View style={styles.inlineTag}>
+                <Star size={10} color={colors.primary} />
+                <Text style={styles.routeCardBestTag}>RECOMMENDED</Text>
+              </View>
+            ) : route.is_fastest ? (
+              <View style={styles.inlineTag}>
+                <Zap size={10} color={colors.fastest} />
+                <Text style={styles.routeCardFastestTag}>FASTEST</Text>
+              </View>
+            ) : (
+              <Text style={styles.routeCardAltTag}>ALT</Text>
+            )}
+            <Text style={styles.routeCardName} numberOfLines={1}>
+              {route.name}
+            </Text>
+          </View>
+          <Text style={styles.routeCardSub}>
+            {route.distance_km} km • {route.congestion_category} • Toll: ₹{route.toll_cost}
+          </Text>
+        </View>
+
+        <View style={styles.routeCardRight}>
+          <Text style={styles.routeCardEta}>
+            {route.predicted_eta_p50} <Text style={styles.routeCardEtaUnit}>min</Text>
+          </Text>
+          {isSelected && (
+            <View style={styles.selectedTag}>
+              <Check size={12} color={colors.primary} />
+              <Text style={styles.selectedTagText}>Selected</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 const ExpandedRouteSheetBase: React.FC = () => {
   const { sheetMaxHeight } = useLayout();
@@ -146,55 +232,15 @@ const ExpandedRouteSheetBase: React.FC = () => {
         {/* Available Alternative Routes List */}
         <View style={styles.routesSection}>
           <Text style={styles.sectionTitle}>ALL CANDIDATE ROUTES</Text>
-          {routes.map((r) => {
-            const isSelected = r.id === selectedRouteId;
-            return (
-              <TouchableOpacity
-                key={r.id}
-                activeOpacity={0.75}
-                onPress={() => setSelectedRouteId(r.id)}
-                style={[styles.routeCard, isSelected && styles.routeCardSelected]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-              >
-                <View style={styles.routeCardLeft}>
-                  <View style={styles.routeCardBadgeRow}>
-                    {r.is_best ? (
-                      <View style={styles.inlineTag}>
-                        <Star size={10} color={colors.primary} />
-                        <Text style={styles.routeCardBestTag}>RECOMMENDED</Text>
-                      </View>
-                    ) : r.is_fastest ? (
-                      <View style={styles.inlineTag}>
-                        <Zap size={10} color={colors.fastest} />
-                        <Text style={styles.routeCardFastestTag}>FASTEST</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.routeCardAltTag}>ALT</Text>
-                    )}
-                    <Text style={styles.routeCardName} numberOfLines={1}>
-                      {r.name}
-                    </Text>
-                  </View>
-                  <Text style={styles.routeCardSub}>
-                    {r.distance_km} km • {r.congestion_category} • Toll: ₹{r.toll_cost}
-                  </Text>
-                </View>
-
-                <View style={styles.routeCardRight}>
-                  <Text style={styles.routeCardEta}>
-                    {r.predicted_eta_p50} <Text style={styles.routeCardEtaUnit}>min</Text>
-                  </Text>
-                  {isSelected && (
-                    <View style={styles.selectedTag}>
-                      <Check size={12} color={colors.primary} />
-                      <Text style={styles.selectedTagText}>Selected</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {routes.map((r, idx) => (
+            <CandidateRouteItem
+              key={r.id}
+              route={r}
+              index={idx}
+              isSelected={r.id === selectedRouteId}
+              onSelect={() => setSelectedRouteId(r.id)}
+            />
+          ))}
         </View>
 
         {/* Turn-by-Turn Maneuvers if Navigating */}

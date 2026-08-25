@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 import { GitFork, Sparkles, Navigation } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { RouteComparisonCard } from '../components/Routes/RouteComparisonCard';
@@ -18,6 +18,9 @@ export const RoutesScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const sectionsFade = useRef(new Animated.Value(0)).current;
+
   const retry = useCallback(() => fetchRoutes(selectedCorridor), [fetchRoutes, selectedCorridor]);
 
   const routes = routingData?.routes ?? [];
@@ -31,6 +34,28 @@ export const RoutesScreen: React.FC = () => {
       otherRoutes: routes.filter(r => r.id !== fastest?.id && r.id !== best?.id)
     };
   }, [routes]);
+
+  // Animate header and supplementary sections when routingData arrives
+  useEffect(() => {
+    if (routes.length > 0) {
+      headerFade.setValue(0);
+      sectionsFade.setValue(0);
+      Animated.stagger(120, [
+        Animated.timing(headerFade, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true
+        }),
+        Animated.timing(sectionsFade, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true
+        })
+      ]).start();
+    }
+  }, [routes.length, routingData?.fetched_at, headerFade, sectionsFade]);
 
   return (
     <DataStateWrapper
@@ -53,69 +78,78 @@ export const RoutesScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.contentWrapper}>
-          {/* Screen Header */}
-          <View style={styles.screenHeader}>
-          <View style={styles.headerTextCol}>
-            <View style={styles.titleRow}>
-              <GitFork size={18} color={colors.primary} />
-              <Text style={styles.titleText}>Route Explorer</Text>
+          {/* Screen Header with Transition */}
+          <Animated.View style={[styles.screenHeader, { opacity: headerFade }]}>
+            <View style={styles.headerTextCol}>
+              <View style={styles.titleRow}>
+                <GitFork size={18} color={colors.primary} />
+                <Text style={styles.titleText}>Route Explorer</Text>
+              </View>
+              <Text style={styles.subText} numberOfLines={1}>
+                {routingData?.corridor_name || 'Active navigation corridor'}
+              </Text>
             </View>
-            <Text style={styles.subText} numberOfLines={1}>
-              {routingData?.corridor_name || 'Active navigation corridor'}
-            </Text>
-          </View>
 
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{routes.length} Alternatives</Text>
-          </View>
-        </View>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{routes.length} Alternatives</Text>
+            </View>
+          </Animated.View>
 
-        {/* Top Primary Route Cards */}
-        {bestRoute && (
-          <View>
-            <RouteComparisonCard
-              route={bestRoute}
-              type="best"
-              timeDeltaMin={fastestRoute && fastestRoute.id !== bestRoute.id ? Math.round(bestRoute.predicted_eta_p50 - fastestRoute.predicted_eta_p50) : 0}
-            />
-            {fastestRoute && fastestRoute.id !== bestRoute.id && (
+          {/* Top Primary Route Cards with Staggered Transitions */}
+          {bestRoute && (
+            <View>
               <RouteComparisonCard
-                route={fastestRoute}
-                type="fastest"
-                timeDeltaMin={Math.round(fastestRoute.predicted_eta_p50 - bestRoute.predicted_eta_p50)}
+                key={bestRoute.id}
+                route={bestRoute}
+                type="best"
+                index={0}
+                timeDeltaMin={fastestRoute && fastestRoute.id !== bestRoute.id ? Math.round(bestRoute.predicted_eta_p50 - fastestRoute.predicted_eta_p50) : 0}
               />
-            )}
-          </View>
-        )}
+              {fastestRoute && fastestRoute.id !== bestRoute.id && (
+                <RouteComparisonCard
+                  key={fastestRoute.id}
+                  route={fastestRoute}
+                  type="fastest"
+                  index={1}
+                  timeDeltaMin={Math.round(fastestRoute.predicted_eta_p50 - bestRoute.predicted_eta_p50)}
+                />
+              )}
+            </View>
+          )}
 
-        {/* AI Driving Copilot Explanation */}
-        {bestRoute && routingData?.explanation && (
-          <VerifiedExplanation
-            explanation={routingData.explanation}
-            verifiedFacts={routingData.verified_facts}
-            bestRoute={bestRoute}
-          />
-        )}
-
-        {/* Trade-off Matrix */}
-        {fastestRoute && bestRoute && fastestRoute.id !== bestRoute.id && (
-          <TradeoffMatrix fastestRoute={fastestRoute} bestRoute={bestRoute} />
-        )}
-
-        {/* Secondary Options */}
-        {otherRoutes.length > 0 && (
-          <View style={styles.secondarySection}>
-            <Text style={styles.secondaryTitle}>ADDITIONAL SCENIC & TOLL-FREE ALTERNATIVES</Text>
-            {otherRoutes.map(r => (
-              <RouteComparisonCard
-                key={r.id}
-                route={r}
-                type="alternative"
-                timeDeltaMin={bestRoute ? Math.round(r.predicted_eta_p50 - bestRoute.predicted_eta_p50) : 0}
+          {/* AI Driving Copilot Explanation */}
+          {bestRoute && routingData?.explanation && (
+            <Animated.View style={{ opacity: sectionsFade }}>
+              <VerifiedExplanation
+                explanation={routingData.explanation}
+                verifiedFacts={routingData.verified_facts}
+                bestRoute={bestRoute}
               />
-            ))}
-          </View>
-        )}
+            </Animated.View>
+          )}
+
+          {/* Trade-off Matrix */}
+          {fastestRoute && bestRoute && fastestRoute.id !== bestRoute.id && (
+            <Animated.View style={{ opacity: sectionsFade }}>
+              <TradeoffMatrix fastestRoute={fastestRoute} bestRoute={bestRoute} />
+            </Animated.View>
+          )}
+
+          {/* Secondary Options with Staggered Index */}
+          {otherRoutes.length > 0 && (
+            <Animated.View style={[styles.secondarySection, { opacity: sectionsFade }]}>
+              <Text style={styles.secondaryTitle}>ADDITIONAL SCENIC & TOLL-FREE ALTERNATIVES</Text>
+              {otherRoutes.map((r, idx) => (
+                <RouteComparisonCard
+                  key={r.id}
+                  route={r}
+                  type="alternative"
+                  index={2 + idx}
+                  timeDeltaMin={bestRoute ? Math.round(r.predicted_eta_p50 - bestRoute.predicted_eta_p50) : 0}
+                />
+              ))}
+            </Animated.View>
+          )}
         </View>
       </ScrollView>
     </DataStateWrapper>

@@ -1,5 +1,5 @@
-import React, { useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import React, { useRef, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { Zap, ShieldCheck, Check, ArrowRight, MapPin, Coins, Navigation } from 'lucide-react-native';
 import { RouteData } from '../../services/routingService';
 import { useNavigationStore } from '../../store/navigationStore';
@@ -12,9 +12,15 @@ interface RouteComparisonCardProps {
   route: RouteData;
   type: 'best' | 'fastest' | 'alternative';
   timeDeltaMin?: number;
+  index?: number;
 }
 
-const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, type, timeDeltaMin }) => {
+const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({
+  route,
+  type,
+  timeDeltaMin,
+  index = 0
+}) => {
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
   const setSelectedRouteId = useNavigationStore(s => s.setSelectedRouteId);
   const setActiveTab = useNavigationStore(s => s.setActiveTab);
@@ -23,6 +29,39 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
 
   const isSelected = route.id === selectedRouteId;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const entryAnim = useRef(new Animated.Value(0)).current;
+  const selectPulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Staggered slide & fade entrance animation
+  useEffect(() => {
+    Animated.timing(entryAnim, {
+      toValue: 1,
+      duration: 380,
+      delay: Math.min(index * 75, 450),
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start();
+  }, [entryAnim, index]);
+
+  // Animated pop when route is selected
+  useEffect(() => {
+    if (isSelected) {
+      Animated.sequence([
+        Animated.timing(selectPulseAnim, {
+          toValue: 1.02,
+          duration: 120,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true
+        }),
+        Animated.spring(selectPulseAnim, {
+          toValue: 1.0,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true
+        })
+      ]).start();
+    }
+  }, [isSelected, selectPulseAnim]);
 
   const isBest = type === 'best';
   const isFastest = type === 'fastest';
@@ -30,7 +69,7 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
   const reliabilityPct = normalizeReliability(route.reliability?.reliability_score);
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true, speed: 30 }).start();
+    Animated.spring(scaleAnim, { toValue: 0.975, useNativeDriver: true, speed: 30 }).start();
   }, [scaleAnim]);
 
   const handlePressOut = useCallback(() => {
@@ -57,8 +96,21 @@ const RouteComparisonCardBase: React.FC<RouteComparisonCardProps> = ({ route, ty
     }
   }, [setSelectedRouteId, setActiveTab, startNavigation, route.id]);
 
+  const translateY = entryAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [18, 0]
+  });
+
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View
+      style={{
+        opacity: entryAnim,
+        transform: [
+          { translateY },
+          { scale: Animated.multiply(scaleAnim, selectPulseAnim) }
+        ]
+      }}
+    >
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={handleSelect}
