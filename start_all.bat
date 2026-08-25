@@ -39,6 +39,13 @@ timeout /t 3 /nobreak >nul
 :: 2. Launch FastAPI Backend Server
 :: -------------------------------------------------------------
 echo [*] [2/3] Launching FastAPI Backend Server on http://localhost:8005...
+where adb >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    adb reverse tcp:8005 tcp:8005 >nul 2>&1
+    adb reverse tcp:11434 tcp:11434 >nul 2>&1
+    adb reverse tcp:8081 tcp:8081 >nul 2>&1
+    echo [OK] Configured ADB reverse tunnels for connected Android devices (ports 8005, 11434, 8081).
+)
 start "TrafficIQ - [2] FastAPI Backend (Port 8005)" cmd /k "title TrafficIQ - [2] FastAPI Backend && cd /d "%ROOT_DIR%" && echo ======================================================= && echo  TrafficIQ FastAPI Backend Server && echo ======================================================= && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8005 --reload"
 
 timeout /t 2 /nobreak >nul
