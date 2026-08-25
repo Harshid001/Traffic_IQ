@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { askRouteCopilot, buildRouteChatContext, ChatMessage } from '../services/chatService';
+import { AiLoadingIndicator } from '../components/Copilot/AiLoadingIndicator';
 import { WhatIfPlanner } from '../components/Insights/WhatIfPlanner';
 import { ReliabilityScorecard } from '../components/Insights/ReliabilityScorecard';
 import { ProvenanceTracker } from '../components/Insights/ProvenanceTracker';
@@ -276,15 +277,7 @@ export const InsightsScreen: React.FC = () => {
                   })}
 
                   {isSending && (
-                    <View style={styles.loadingRow}>
-                      <View style={styles.botIconCircle}>
-                        <Bot size={13} color={colors.primaryBright} />
-                      </View>
-                      <View style={styles.loadingBubble}>
-                        <ActivityIndicator size="small" color={colors.primary} />
-                        <Text style={styles.loadingText}>Reasoning with Phi-4-mini & corridor data...</Text>
-                      </View>
-                    </View>
+                    <AiLoadingIndicator corridorName={routingData?.corridor_name} />
                   )}
                 </ScrollView>
 

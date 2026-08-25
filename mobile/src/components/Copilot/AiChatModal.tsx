@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
 import { askRouteCopilot, buildRouteChatContext, ChatMessage } from '../../services/chatService';
+import { AiLoadingIndicator } from './AiLoadingIndicator';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -249,15 +250,7 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
               })}
 
               {isLoading && (
-                <View style={styles.loadingRow}>
-                  <View style={styles.botIconCircle}>
-                    <Bot size={14} color={colors.primaryBright} />
-                  </View>
-                  <View style={styles.loadingBubble}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingText}>Analyzing route via phi4-mini...</Text>
-                  </View>
-                </View>
+                <AiLoadingIndicator corridorName={routingData?.corridor_name} />
               )}
             </ScrollView>
 
