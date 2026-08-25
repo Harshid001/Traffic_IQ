@@ -534,7 +534,7 @@ export async function askRouteCopilot(
     for (const baseUrl of backendUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
         const combinedSignal = signal || controller.signal;
 
         const resp = await fetch(`${baseUrl}/api/routes/chat`, {
@@ -559,7 +559,9 @@ export async function askRouteCopilot(
             return res;
           }
         }
-      } catch {}
+      } catch (err: any) {
+        console.warn(`[ChatService] Backend chat failed at ${baseUrl}:`, err?.message || err);
+      }
     }
   }
 

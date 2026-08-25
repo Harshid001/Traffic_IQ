@@ -237,9 +237,9 @@ class OllamaExplanationClient:
                     "messages": chat_turns,
                     "stream": False,
                     "options": {
-                        "temperature": 0.3,
+                        "temperature": 0.2,
                         "top_p": 0.9,
-                        "num_predict": 300
+                        "num_predict": 130
                     }
                 }
                 resp = await client.post(f"{self.ollama_url}/api/chat", json=chat_payload)
@@ -264,7 +264,7 @@ class OllamaExplanationClient:
                     "model": self.model,
                     "prompt": gen_prompt,
                     "stream": False,
-                    "options": {"temperature": 0.3, "top_p": 0.9, "num_predict": 300}
+                    "options": {"temperature": 0.2, "top_p": 0.9, "num_predict": 130}
                 }
                 resp2 = await client.post(f"{self.ollama_url}/api/generate", json=gen_payload)
                 if resp2.status_code == 200:
@@ -277,7 +277,7 @@ class OllamaExplanationClient:
                             "status": "success"
                         }
         except Exception as e:
-            logger.debug(f"Ollama chat error: {e}. Checking Gemini cloud fallback.")
+            logger.warning(f"Ollama chat error: {e}. Checking Gemini cloud fallback.")
 
         # 2. Attempt Google Gemini cloud fallback
         if settings.GEMINI_API_KEY:
