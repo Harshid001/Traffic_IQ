@@ -80,23 +80,42 @@ export function buildRouteChatContext(
 }
 
 /**
- * Resolves local Ollama URL based on running platform and active host.
+ * Candidate URLs for direct Ollama access across ADB reverse, LAN, and emulator.
  */
-function resolveOllamaUrl(): string {
+function getOllamaCandidateUrls(): string[] {
+  const urls: string[] = [];
   try {
-    if (API_BASE_URL && (API_BASE_URL.includes('192.168.') || API_BASE_URL.includes('10.') || API_BASE_URL.includes('172.'))) {
+    if (API_BASE_URL) {
       const match = API_BASE_URL.match(/https?:\/\/([^:/]+)/);
-      if (match && match[1]) {
-        return `http://${match[1]}:11434`;
+      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
+        urls.push(`http://${match[1]}:11434`);
       }
     }
   } catch {
     // fallback
   }
+  urls.push('http://localhost:11434');
+  urls.push('http://192.168.1.147:11434');
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:11434';
+    urls.push('http://10.0.2.2:11434');
   }
-  return 'http://localhost:11434';
+  return [...new Set(urls)];
+}
+
+/**
+ * Candidate URLs for FastAPI backend access.
+ */
+function getBackendCandidateUrls(): string[] {
+  const urls: string[] = [];
+  if (API_BASE_URL) {
+    urls.push(API_BASE_URL.replace(/\/+$/, ''));
+  }
+  urls.push('http://localhost:8005');
+  urls.push('http://192.168.1.147:8005');
+  if (Platform.OS === 'android') {
+    urls.push('http://10.0.2.2:8005');
+  }
+  return [...new Set(urls)];
 }
 
 /**
@@ -109,7 +128,7 @@ async function queryDirectOllama(
   history?: ChatHistoryItem[],
   signal?: AbortSignal
 ): Promise<ChatResponse | null> {
-  const ollamaUrl = resolveOllamaUrl();
+  const candidateUrls = getOllamaCandidateUrls();
   const contextLines: string[] = [];
   if (corridorName) contextLines.push(`Active Corridor: ${corridorName}`);
   if (routeContext) {
@@ -150,38 +169,40 @@ async function queryDirectOllama(
 
   turns.push({ role: 'user', content: query });
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
-    const combinedSignal = signal || controller.signal;
+  for (const ollamaUrl of candidateUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const combinedSignal = signal || controller.signal;
 
-    const resp = await fetch(`${ollamaUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'phi4-mini',
-        messages: turns,
-        stream: false,
-        options: { temperature: 0.3, num_predict: 300 }
-      }),
-      signal: combinedSignal
-    });
-    clearTimeout(timeoutId);
-
-    if (resp.ok) {
-      const data = await resp.json();
-      const text = data?.message?.content?.trim();
-      if (text) {
-        return {
-          response: text,
+      const resp = await fetch(`${ollamaUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           model: 'phi4-mini',
-          provenance: 'LOCAL OLLAMA (phi4-mini)',
-          status: 'success'
-        };
+          messages: turns,
+          stream: false,
+          options: { temperature: 0.3, num_predict: 300 }
+        }),
+        signal: combinedSignal
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data?.message?.content?.trim();
+        if (text) {
+          return {
+            response: text,
+            model: 'phi4-mini',
+            provenance: 'LOCAL OLLAMA (phi4-mini)',
+            status: 'success'
+          };
+        }
       }
+    } catch {
+      // Continue to next candidate URL
     }
-  } catch {
-    // Direct Ollama unreachable
   }
   return null;
 }
@@ -197,40 +218,51 @@ export async function askRouteCopilot(
   history?: ChatHistoryItem[],
   signal?: AbortSignal
 ): Promise<ChatResponse> {
-  // 1. Try Backend API endpoint (FastAPI + local Phi-4-mini)
-  try {
-    const res = await fetchJson<ChatResponse>('/api/routes/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        query,
-        corridor_name: corridorName || routeContext?.corridor_name,
-        route_context: routeContext,
-        messages: history
-      }),
-      signal,
-      timeoutMs: 25000,
-      retries: 0
-    });
+  const backendUrls = getBackendCandidateUrls();
 
-    if (res && res.response && res.status === 'success') {
-      return res;
+  // 1. Try Backend API endpoint across candidate URLs
+  for (const baseUrl of backendUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 18000);
+      const combinedSignal = signal || controller.signal;
+
+      const resp = await fetch(`${baseUrl}/api/routes/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'trafficiq-dev-key'
+        },
+        body: JSON.stringify({
+          query,
+          corridor_name: corridorName || routeContext?.corridor_name,
+          route_context: routeContext,
+          messages: history
+        }),
+        signal: combinedSignal
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const res = (await resp.json()) as ChatResponse;
+        if (res && res.response && res.status !== 'error') {
+          return res;
+        }
+      }
+    } catch {
+      // Try next candidate baseUrl
     }
-    if (res && res.response && res.status !== 'error') {
-      return res;
-    }
-  } catch {
-    // Backend offline or unreachable
   }
 
-  // 2. Try Direct Client-Side Ollama connection
+  // 2. Try Direct Client-Side Ollama connection across candidates
   const directRes = await queryDirectOllama(query, corridorName, routeContext, history, signal);
   if (directRes) {
     return directRes;
   }
 
-  // 3. Honest Offline Error (Zero hardcoded fake replies)
+  // 3. Honest Offline Error
   return {
-    response: 'Phi-4-mini assistant is currently unreachable on Ollama (localhost:11434). Please verify Ollama is active with `ollama run phi4-mini`.',
+    response: 'Phi-4-mini assistant is currently unreachable. Make sure the backend server (port 8005) and Ollama are running.',
     model: 'offline',
     provenance: 'OFFLINE',
     status: 'error'
