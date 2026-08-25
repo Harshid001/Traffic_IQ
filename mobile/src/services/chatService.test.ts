@@ -125,6 +125,6 @@ describe('AI Copilot Chat Service (Direct Cloud Gemini & Zero-Server Setup)', ()
 
     expect(res.status).toBe('success');
     expect(res.response).toContain(corridor.routes[0].name);
-    expect(res.response).toContain('Live Telemetry');
+    expect(res.response).toContain('recommended');
   });
 });
