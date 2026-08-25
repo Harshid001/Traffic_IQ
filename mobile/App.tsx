@@ -10,6 +10,7 @@ import { RoutesScreen } from './src/screens/RoutesScreen';
 import { TrafficScreen } from './src/screens/TrafficScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { PageTransition } from './src/components/Common/PageTransition';
 import { AppIntroTutorial } from './src/components/Onboarding/AppIntroTutorial';
 import { colors } from './src/theme/colors';
 
@@ -100,8 +101,12 @@ export default function App() {
             {/* Navigation Status Header */}
             <Header />
 
-            {/* Active Screen View */}
-            <View style={styles.mainContent}>{activeScreen}</View>
+            {/* Active Screen View with Smooth Page Transition */}
+            <View style={styles.mainContent}>
+              <PageTransition activeTab={activeTab}>
+                {activeScreen}
+              </PageTransition>
+            </View>
 
             {/* Floating Tactile Bottom Tab Bar */}
             <TabBar />

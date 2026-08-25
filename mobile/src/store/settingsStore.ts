@@ -29,10 +29,20 @@ interface SettingsState {
   /** Non-null when the health check failed. */
   healthError: string | null;
 
+  /** Direct Cloud Gemini API Key for zero-server mobile AI operation */
+  geminiApiKey: string;
+  /** Active Cloud AI model name */
+  aiModel: string;
+  /** Selected AI Provider */
+  aiProvider: 'auto' | 'gemini' | 'ollama';
+
   setPreferenceProfile: (profile: PreferenceProfile) => void;
   setTrafficMode: (mode: 'DEMO' | 'REAL') => void;
   setAlertCooldownSeconds: (seconds: number) => void;
   setWorseningThresholdPct: (pct: number) => void;
+  setGeminiApiKey: (key: string) => void;
+  setAiModel: (model: string) => void;
+  setAiProvider: (provider: 'auto' | 'gemini' | 'ollama') => void;
   toggleBackgroundAlerts: () => void;
   toggleSound: () => void;
   refreshHealth: () => Promise<void>;
@@ -55,11 +65,17 @@ export const useSettingsStore = create<SettingsState>()(
       systemHealth: null,
       isLoadingHealth: false,
       healthError: null,
+      geminiApiKey: '',
+      aiModel: 'gemini-2.0-flash',
+      aiProvider: 'auto',
 
       setPreferenceProfile: (preferenceProfile) => set({ preferenceProfile }),
       setTrafficMode: (trafficMode) => set({ trafficMode }),
       setAlertCooldownSeconds: (alertCooldownSeconds) => set({ alertCooldownSeconds }),
       setWorseningThresholdPct: (worseningThresholdPct) => set({ worseningThresholdPct }),
+      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: geminiApiKey.trim() }),
+      setAiModel: (aiModel) => set({ aiModel }),
+      setAiProvider: (aiProvider) => set({ aiProvider }),
       toggleBackgroundAlerts: () =>
         set((state) => ({ backgroundAlertsEnabled: !state.backgroundAlertsEnabled })),
       toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
@@ -90,6 +106,9 @@ export const useSettingsStore = create<SettingsState>()(
         backgroundAlertsEnabled: state.backgroundAlertsEnabled,
         soundEnabled: state.soundEnabled,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
+        geminiApiKey: state.geminiApiKey,
+        aiModel: state.aiModel,
+        aiProvider: state.aiProvider,
       }),
     }
   )

@@ -27,7 +27,8 @@ import {
   RotateCcw
 } from 'lucide-react-native';
 import { useNavigationStore } from '../../store/navigationStore';
-import { askRouteCopilot, buildRouteChatContext, ChatMessage } from '../../services/chatService';
+import { askRouteCopilot, buildRouteChatContext, ChatMessage, getEffectiveGeminiApiKey, getEffectiveAiModel } from '../../services/chatService';
+import { useSettingsStore } from '../../store/settingsStore';
 import { AiLoadingIndicator } from './AiLoadingIndicator';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -51,6 +52,11 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
   const selectedRouteId = useNavigationStore(s => s.selectedRouteId);
   const { dialogMaxWidth } = useLayout();
 
+  const geminiApiKey = useSettingsStore(s => s.geminiApiKey);
+  const configuredModel = useSettingsStore(s => s.aiModel);
+  const isCloudAiActive = Boolean(geminiApiKey || getEffectiveGeminiApiKey());
+  const activeModelName = isCloudAiActive ? configuredModel || 'gemini-2.0-flash' : 'trafficiq-ai';
+
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -65,17 +71,19 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
     if (visible && messages.length === 0) {
       const bestName = selectedRoute?.name || 'your destination';
       const eta = selectedRoute?.predicted_eta_p50 ? Math.round(selectedRoute.predicted_eta_p50) : 28;
+      const corridor = routingData?.corridor_name || 'your corridor';
+      const aiBrand = isCloudAiActive ? '**Google Gemini Cloud AI**' : '**TrafficIQ Copilot Engine**';
       const initialGreeting: ChatMessage = {
         id: 'msg-0',
         sender: 'copilot',
-        text: `Hello! I'm your real-time **TrafficIQ Copilot** powered by **Phi-4-mini**. I am actively monitoring **${routingData?.corridor_name || 'your corridor'}** (~${eta} mins via ${bestName}). How can I assist your drive?`,
+        text: `Hello! I'm your real-time **TrafficIQ Copilot** connected to ${aiBrand}. I am actively tracking live telemetry for **${corridor}** (~${eta} mins via ${bestName}). How can I assist your drive?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        model: 'phi4-mini',
-        provenance: 'LOCAL OLLAMA (phi4-mini)'
+        model: activeModelName,
+        provenance: isCloudAiActive ? `GOOGLE GEMINI (${activeModelName})` : 'TRAFFICIQ TELEMETRY'
       };
       setMessages([initialGreeting]);
     }
-  }, [visible, routingData, selectedRoute, messages.length]);
+  }, [visible, routingData, selectedRoute, messages.length, isCloudAiActive, activeModelName]);
 
   const handleSend = useCallback(
     async (textToSend?: string) => {
@@ -121,7 +129,7 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
         const errorMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
-          text: 'Phi-4-mini connection issue: Could not establish link with local Ollama service at localhost:11434.',
+          text: 'Unable to complete AI query. Please check your network connection or update your Gemini API key in Profile settings.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           model: 'offline',
           provenance: 'CONNECTION ERROR'
@@ -156,10 +164,14 @@ export const AiChatModal: React.FC<AiChatModalProps> = ({ visible, onClose }) =>
                   <View style={styles.titleRow}>
                     <Text style={styles.title}>TrafficIQ Copilot</Text>
                     <View style={styles.modelBadge}>
-                      <Text style={styles.modelBadgeText}>phi4-mini</Text>
+                      <Text style={styles.modelBadgeText}>
+                        {isCloudAiActive ? activeModelName : 'live-telemetry'}
+                      </Text>
                     </View>
                   </View>
-                  <Text style={styles.subTitle}>Local Neural In-Car Assistant</Text>
+                  <Text style={styles.subTitle}>
+                    {isCloudAiActive ? 'Direct Cloud AI Assistant' : 'Real-Time In-Car Assistant'}
+                  </Text>
                 </View>
               </View>
 

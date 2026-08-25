@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { TrendingUp, Activity, ShieldCheck, Zap } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
 import { ForecastTimeline } from '../components/Traffic/ForecastTimeline';
@@ -20,12 +20,36 @@ export const TrafficScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+
   const retry = useCallback(() => fetchRoutes(selectedCorridor), [fetchRoutes, selectedCorridor]);
 
   const routes = routingData?.routes ?? [];
   const selectedRoute = useMemo(() => {
     return routes.find(r => r.id === selectedRouteId) || routes[0];
   }, [routes, selectedRouteId]);
+
+  useEffect(() => {
+    if (selectedRoute) {
+      headerAnim.setValue(0);
+      cardsAnim.setValue(0);
+      Animated.stagger(100, [
+        Animated.timing(headerAnim, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: Platform.OS !== 'web'
+        }),
+        Animated.timing(cardsAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: Platform.OS !== 'web'
+        })
+      ]).start();
+    }
+  }, [selectedRoute?.id, headerAnim, cardsAnim]);
 
   return (
     <DataStateWrapper
@@ -49,62 +73,67 @@ export const TrafficScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.contentWrapper}>
-            {/* Header */}
-            <View style={styles.screenHeader}>
-            <View style={styles.headerTextCol}>
-              <View style={styles.titleRow}>
-                <TrendingUp size={18} color={colors.primary} />
-                <Text style={styles.titleText}>Traffic Intelligence</Text>
+            {/* Header with Animation */}
+            <Animated.View style={[styles.screenHeader, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
+              <View style={styles.headerTextCol}>
+                <View style={styles.titleRow}>
+                  <TrendingUp size={18} color={colors.primary} />
+                  <Text style={styles.titleText}>Traffic Intelligence</Text>
+                </View>
+                <Text style={styles.subText} numberOfLines={1}>
+                  Real-time congestion analytics for {selectedRoute.name}
+                </Text>
               </View>
-              <Text style={styles.subText} numberOfLines={1}>
-                Real-time congestion analytics for {selectedRoute.name}
-              </Text>
-            </View>
 
-            <View style={styles.activePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.activePillText}>Live Monitor</Text>
-            </View>
-          </View>
+              <View style={styles.activePill}>
+                <View style={styles.liveDot} />
+                <Text style={styles.activePillText}>Live Monitor</Text>
+              </View>
+            </Animated.View>
 
-          {/* Interactive Route Selector Chips */}
-          {routes.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.routeSelectorScroll}
-            >
-              {routes.map(r => {
-                const isSelected = r.id === selectedRoute.id;
-                return (
-                  <TouchableOpacity
-                    key={r.id}
-                    activeOpacity={0.75}
-                    onPress={() => setSelectedRouteId(r.id)}
-                    style={[styles.routeChip, isSelected && styles.routeChipSelected]}
-                  >
-                    {r.is_best ? (
-                      <ShieldCheck size={11} color={isSelected ? colors.primary : colors.text.muted} />
-                    ) : r.is_fastest ? (
-                      <Zap size={11} color={isSelected ? colors.fastest : colors.text.muted} />
-                    ) : null}
-                    <Text style={[styles.routeChipText, isSelected && styles.routeChipTextSelected]}>
-                      {r.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
+            {/* Interactive Route Selector Chips */}
+            {routes.length > 1 && (
+              <Animated.View style={{ opacity: headerAnim }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.routeSelectorScroll}
+                >
+                  {routes.map(r => {
+                    const isSelected = r.id === selectedRoute.id;
+                    return (
+                      <TouchableOpacity
+                        key={r.id}
+                        activeOpacity={0.75}
+                        onPress={() => setSelectedRouteId(r.id)}
+                        style={[styles.routeChip, isSelected && styles.routeChipSelected]}
+                      >
+                        {r.is_best ? (
+                          <ShieldCheck size={11} color={isSelected ? colors.primary : colors.text.muted} />
+                        ) : r.is_fastest ? (
+                          <Zap size={11} color={isSelected ? colors.fastest : colors.text.muted} />
+                        ) : null}
+                        <Text style={[styles.routeChipText, isSelected && styles.routeChipTextSelected]}>
+                          {r.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </Animated.View>
+            )}
 
-          {/* Smart Departure & Forecast Timeline */}
-          <ForecastTimeline route={selectedRoute} />
+            {/* Animated Cards Container */}
+            <Animated.View style={{ opacity: cardsAnim, transform: [{ translateY: cardsAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
+              {/* Smart Departure & Forecast Timeline */}
+              <ForecastTimeline route={selectedRoute} />
 
-          {/* 24-Hour Historical Commute Rhythm */}
-          <TrafficDNAPlot route={selectedRoute} />
+              {/* 24-Hour Historical Commute Rhythm */}
+              <TrafficDNAPlot route={selectedRoute} />
 
-          {/* Step-by-Step Segment Congestion */}
-          <SegmentBottlenecks route={selectedRoute} />
+              {/* Step-by-Step Segment Congestion */}
+              <SegmentBottlenecks route={selectedRoute} />
+            </Animated.View>
           </View>
         </ScrollView>
       )}

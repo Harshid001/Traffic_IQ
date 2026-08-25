@@ -8,7 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated,
+  Easing
 } from 'react-native';
 import {
   Sparkles,
@@ -24,7 +26,8 @@ import {
   Zap
 } from 'lucide-react-native';
 import { useNavigationStore } from '../store/navigationStore';
-import { askRouteCopilot, buildRouteChatContext, ChatMessage } from '../services/chatService';
+import { useSettingsStore } from '../store/settingsStore';
+import { askRouteCopilot, buildRouteChatContext, ChatMessage, getEffectiveGeminiApiKey } from '../services/chatService';
 import { AiLoadingIndicator } from '../components/Copilot/AiLoadingIndicator';
 import { WhatIfPlanner } from '../components/Insights/WhatIfPlanner';
 import { ReliabilityScorecard } from '../components/Insights/ReliabilityScorecard';
@@ -52,10 +55,37 @@ export const InsightsScreen: React.FC = () => {
   const fetchRoutes = useNavigationStore(s => s.fetchRoutes);
   const selectedCorridor = useNavigationStore(s => s.selectedCorridor);
 
+  const geminiApiKey = useSettingsStore(s => s.geminiApiKey);
+  const configuredModel = useSettingsStore(s => s.aiModel);
+  const isCloudAiActive = Boolean(geminiApiKey || getEffectiveGeminiApiKey());
+  const activeModelName = isCloudAiActive ? configuredModel || 'gemini-2.0-flash' : 'trafficiq-ai';
+
   const [inputQuery, setInputQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatScrollRef = useRef<ScrollView>(null);
+
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    headerAnim.setValue(0);
+    cardsAnim.setValue(0);
+    Animated.stagger(110, [
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web'
+      }),
+      Animated.timing(cardsAnim, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web'
+      })
+    ]).start();
+  }, [headerAnim, cardsAnim]);
 
   const retry = useCallback(() => fetchRoutes(selectedCorridor), [fetchRoutes, selectedCorridor]);
 
@@ -70,17 +100,18 @@ export const InsightsScreen: React.FC = () => {
       const bestName = selectedRoute.name || 'your route';
       const eta = selectedRoute.predicted_eta_p50 ? Math.round(selectedRoute.predicted_eta_p50) : 28;
       const corridor = routingData?.corridor_name || 'Active Corridor';
+      const aiBrand = isCloudAiActive ? '**Google Gemini Cloud AI**' : '**TrafficIQ Telemetry Engine**';
       const initialGreeting: ChatMessage = {
         id: 'msg-init',
         sender: 'copilot',
-        text: `Hello! I'm your real-time **TrafficIQ Copilot** powered by **Phi-4-mini**. I have loaded live telemetry for **${corridor}** (${selectedRoute.distance_km} km, ~${eta} mins via ${bestName}). Ask me about congestion, departure timings, tolls, or route trade-offs!`,
+        text: `Hello! I'm your real-time **TrafficIQ Copilot** connected to ${aiBrand}. I have loaded live telemetry for **${corridor}** (${selectedRoute.distance_km} km, ~${eta} mins via ${bestName}). Ask me about congestion, departure timings, tolls, or route trade-offs!`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        model: 'phi4-mini',
-        provenance: 'LOCAL OLLAMA (phi4-mini)'
+        model: activeModelName,
+        provenance: isCloudAiActive ? `GOOGLE GEMINI (${activeModelName})` : 'TRAFFICIQ TELEMETRY'
       };
       setMessages([initialGreeting]);
     }
-  }, [selectedRoute, routingData, messages.length]);
+  }, [selectedRoute, routingData, messages.length, isCloudAiActive, activeModelName]);
 
   const handleSendMessage = useCallback(
     async (textToSend?: string) => {
@@ -125,7 +156,7 @@ export const InsightsScreen: React.FC = () => {
         const errorMsg: ChatMessage = {
           id: `copilot-${Date.now()}`,
           sender: 'copilot',
-          text: 'Phi-4-mini connection issue: Could not reach local Ollama service at localhost:11434.',
+          text: 'AI Copilot connection issue. Please check your network or configure your Gemini API Key in Profile Settings.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           model: 'offline',
           provenance: 'CONNECTION ERROR'
@@ -165,7 +196,7 @@ export const InsightsScreen: React.FC = () => {
         >
           <View style={styles.contentWrapper}>
             {/* Header */}
-            <View style={styles.screenHeader}>
+            <Animated.View style={[styles.screenHeader, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
               <View style={styles.titleRow}>
                 <Sparkles size={18} color={colors.primary} />
                 <Text style={styles.titleText}>Driving Copilot</Text>
@@ -176,148 +207,150 @@ export const InsightsScreen: React.FC = () => {
               <Text style={styles.subText}>
                 Live neural in-car assistant grounded on active route telemetry
               </Text>
-            </View>
+            </Animated.View>
 
-            {/* Live Interactive AI Copilot Chat Card */}
-            <Card style={styles.chatCard}>
-              <View style={styles.chatCardHeader}>
-                <View style={styles.copilotHeaderLeft}>
-                  <View style={styles.copilotAvatar}>
-                    <Bot size={16} color={colors.primaryBright} />
-                  </View>
-                  <View>
-                    <View style={styles.chatTitleRow}>
-                      <Text style={styles.chatTitle}>REAL-TIME AI COPILOT</Text>
-                      <View style={styles.livePulseDot} />
+            <Animated.View style={{ opacity: cardsAnim, transform: [{ translateY: cardsAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
+              {/* Live Interactive AI Copilot Chat Card */}
+              <Card style={styles.chatCard}>
+                <View style={styles.chatCardHeader}>
+                  <View style={styles.copilotHeaderLeft}>
+                    <View style={styles.copilotAvatar}>
+                      <Bot size={16} color={colors.primaryBright} />
                     </View>
-                    <Text style={styles.chatSubTitle}>
-                      {routingData?.corridor_name || 'Active Corridor'} Context Loaded
-                    </Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={resetChat}
-                  style={styles.resetBtn}
-                  hitSlop={spacing.hitSlop}
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset conversation"
-                >
-                  <RotateCcw size={14} color={colors.text.muted} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Quick Suggestion Chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.quickPromptsScroll}
-              >
-                {QUICK_PROMPTS.map(p => {
-                  const Icon = p.icon;
-                  return (
-                    <TouchableOpacity
-                      key={p.id}
-                      activeOpacity={0.75}
-                      onPress={() => handleSendMessage(p.text)}
-                      disabled={isSending}
-                      style={styles.quickPromptChip}
-                    >
-                      <Icon size={12} color={colors.primary} />
-                      <Text style={styles.quickPromptText}>{p.text}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Message Thread Box */}
-              <View style={styles.threadContainer}>
-                <ScrollView
-                  ref={chatScrollRef}
-                  style={styles.threadScroll}
-                  contentContainerStyle={styles.threadScrollContent}
-                  showsVerticalScrollIndicator={false}
-                  onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
-                >
-                  {messages.map(msg => {
-                    const isUser = msg.sender === 'user';
-                    return (
-                      <View
-                        key={msg.id}
-                        style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowCopilot]}
-                      >
-                        {!isUser && (
-                          <View style={styles.botIconCircle}>
-                            <Bot size={13} color={colors.primaryBright} />
-                          </View>
-                        )}
-
-                        <View style={[styles.bubble, isUser ? styles.userBubble : styles.copilotBubble]}>
-                          <Text style={[styles.bubbleText, isUser ? styles.userBubbleText : styles.copilotBubbleText]}>
-                            {msg.text}
-                          </Text>
-                          <View style={styles.bubbleFooter}>
-                            <Text style={styles.msgTime}>{msg.timestamp}</Text>
-                            {!isUser && (
-                              <Text style={styles.provenanceTag}>
-                                • {msg.provenance || 'Local phi4-mini'}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-
-                        {isUser && (
-                          <View style={styles.userIconCircle}>
-                            <User size={13} color={colors.text.onAccent} />
-                          </View>
-                        )}
+                    <View>
+                      <View style={styles.chatTitleRow}>
+                        <Text style={styles.chatTitle}>REAL-TIME AI COPILOT</Text>
+                        <View style={styles.livePulseDot} />
                       </View>
-                    );
-                  })}
+                      <Text style={styles.chatSubTitle}>
+                        {routingData?.corridor_name || 'Active Corridor'} Context Loaded
+                      </Text>
+                    </View>
+                  </View>
 
-                  {isSending && (
-                    <AiLoadingIndicator corridorName={routingData?.corridor_name} />
-                  )}
-                </ScrollView>
-
-                {/* Input Bar */}
-                <View style={styles.inputRow}>
-                  <TextInput
-                    value={inputQuery}
-                    onChangeText={setInputQuery}
-                    placeholder="Ask about traffic, delays, tolls, departure..."
-                    placeholderTextColor={colors.text.dimmed}
-                    style={styles.chatInput}
-                    returnKeyType="send"
-                    onSubmitEditing={() => handleSendMessage()}
-                    editable={!isSending}
-                  />
                   <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => handleSendMessage()}
-                    disabled={isSending || !inputQuery.trim()}
-                    style={[
-                      styles.sendBtn,
-                      (!inputQuery.trim() || isSending) && styles.sendBtnDisabled
-                    ]}
+                    activeOpacity={0.75}
+                    onPress={resetChat}
+                    style={styles.resetBtn}
+                    hitSlop={spacing.hitSlop}
                     accessibilityRole="button"
-                    accessibilityLabel="Send question to Copilot"
+                    accessibilityLabel="Reset conversation"
                   >
-                    <Send size={14} color={colors.text.onAccent} />
+                    <RotateCcw size={14} color={colors.text.muted} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </Card>
 
-            {/* Smart Departure Assistant */}
-            <WhatIfPlanner />
+                {/* Quick Suggestion Chips */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.quickPromptsScroll}
+                >
+                  {QUICK_PROMPTS.map(p => {
+                    const Icon = p.icon;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        activeOpacity={0.75}
+                        onPress={() => handleSendMessage(p.text)}
+                        disabled={isSending}
+                        style={styles.quickPromptChip}
+                      >
+                        <Icon size={12} color={colors.primary} />
+                        <Text style={styles.quickPromptText}>{p.text}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
 
-            {/* Driver On-Time Confidence Scorecard */}
-            <ReliabilityScorecard route={selectedRoute} />
+                {/* Message Thread Box */}
+                <View style={styles.threadContainer}>
+                  <ScrollView
+                    ref={chatScrollRef}
+                    style={styles.threadScroll}
+                    contentContainerStyle={styles.threadScrollContent}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+                  >
+                    {messages.map(msg => {
+                      const isUser = msg.sender === 'user';
+                      return (
+                        <View
+                          key={msg.id}
+                          style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowCopilot]}
+                        >
+                          {!isUser && (
+                            <View style={styles.botIconCircle}>
+                              <Bot size={13} color={colors.primaryBright} />
+                            </View>
+                          )}
 
-            {/* System Feeds & Engine Provenance */}
-            <ProvenanceTracker />
+                          <View style={[styles.bubble, isUser ? styles.userBubble : styles.copilotBubble]}>
+                            <Text style={[styles.bubbleText, isUser ? styles.userBubbleText : styles.copilotBubbleText]}>
+                              {msg.text}
+                            </Text>
+                            <View style={styles.bubbleFooter}>
+                              <Text style={styles.msgTime}>{msg.timestamp}</Text>
+                              {!isUser && (
+                                <Text style={styles.provenanceTag}>
+                                  • {msg.provenance || 'Local phi4-mini'}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+
+                          {isUser && (
+                            <View style={styles.userIconCircle}>
+                              <User size={13} color={colors.text.onAccent} />
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+
+                    {isSending && (
+                      <AiLoadingIndicator corridorName={routingData?.corridor_name} />
+                    )}
+                  </ScrollView>
+
+                  {/* Input Bar */}
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      value={inputQuery}
+                      onChangeText={setInputQuery}
+                      placeholder="Ask about traffic, delays, tolls, departure..."
+                      placeholderTextColor={colors.text.dimmed}
+                      style={styles.chatInput}
+                      returnKeyType="send"
+                      onSubmitEditing={() => handleSendMessage()}
+                      editable={!isSending}
+                    />
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleSendMessage()}
+                      disabled={isSending || !inputQuery.trim()}
+                      style={[
+                        styles.sendBtn,
+                        (!inputQuery.trim() || isSending) && styles.sendBtnDisabled
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Send question to Copilot"
+                    >
+                      <Send size={14} color={colors.text.onAccent} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Smart Departure Assistant */}
+              <WhatIfPlanner />
+
+              {/* Driver On-Time Confidence Scorecard */}
+              <ReliabilityScorecard route={selectedRoute} />
+
+              {/* System Feeds & Engine Provenance */}
+              <ProvenanceTracker />
+            </Animated.View>
           </View>
         </ScrollView>
       )}

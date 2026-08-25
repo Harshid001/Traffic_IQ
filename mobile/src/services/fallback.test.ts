@@ -90,18 +90,30 @@ describe('Tier 3 Demo Simulation Fallback Engine', () => {
 
 describe('Resilient Services Layer (Offline & Network Drop Handling)', () => {
   it('calculateRoutes falls back seamlessly to Tier 3 when network fails', async () => {
-    // When backend is unreachable (or localhost port closed), calculateRoutes must resolve with Tier 3 simulation
-    const res = await calculateRoutes({ corridor_preset: 'bangalore_tech_corridor' });
-    expect(res).toBeDefined();
-    expect(res.routes.length).toBeGreaterThan(0);
-    expect(res.is_fallback).toBe(true);
-    expect(res.routing_provenance).toBe('DEMO');
+    // Force network failure for hermetic offline test
+    const origFetch = global.fetch;
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+    try {
+      const res = await calculateRoutes({ corridor_preset: 'bangalore_tech_corridor' });
+      expect(res).toBeDefined();
+      expect(res.routes.length).toBeGreaterThan(0);
+      expect(res.is_fallback).toBe(true);
+      expect(res.routing_provenance).toBe('DEMO');
+    } finally {
+      global.fetch = origFetch;
+    }
   });
 
   it('fetchHealth falls back to diagnostic simulation status', async () => {
-    const health = await fetchHealth();
-    expect(health).toBeDefined();
-    expect(health.status).toBe('DEMO_SIMULATION');
+    const origFetch = global.fetch;
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network offline'));
+    try {
+      const health = await fetchHealth();
+      expect(health).toBeDefined();
+      expect(health.status).toBe('DEMO_SIMULATION');
+    } finally {
+      global.fetch = origFetch;
+    }
   });
 
   it('fetchTrafficDNA falls back to simulated DNA', async () => {

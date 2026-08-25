@@ -17,10 +17,16 @@ vi.mock('react-native', () => ({
   }
 }));
 
-import { askRouteCopilot, buildRouteChatContext } from './chatService';
+import {
+  askRouteCopilot,
+  buildRouteChatContext,
+  queryDirectGeminiApi,
+  testAiConnection,
+  generateAutonomousCopilotResponse
+} from './chatService';
 import { SIMULATED_CORRIDORS } from './demoFallbackEngine';
 
-describe('AI Copilot Chat Service (Phi-4-mini)', () => {
+describe('AI Copilot Chat Service (Direct Cloud Gemini & Zero-Server Setup)', () => {
   const corridor = SIMULATED_CORRIDORS.ahmedabad_gandhinagar;
   const mockRoutingData: any = {
     corridor_name: corridor.name,
@@ -28,6 +34,10 @@ describe('AI Copilot Chat Service (Phi-4-mini)', () => {
     best_route_id: corridor.routes[0].id,
     fastest_route_id: corridor.routes[1]?.id || corridor.routes[0].id
   };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('builds rich route context accurately from corridor telemetry', () => {
     const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
@@ -38,41 +48,83 @@ describe('AI Copilot Chat Service (Phi-4-mini)', () => {
     expect(context.bottlenecks).toBeDefined();
   });
 
-  it('transmits multi-turn conversation history to Phi-4-mini backend endpoint', async () => {
+  it('queries Google Gemini Cloud API directly with telemetry and multi-turn history', async () => {
     const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
     const history = [
-      { role: 'user' as const, content: 'Is SG Highway fast?' },
-      { role: 'assistant' as const, content: 'Yes, SG Highway takes about 24 minutes.' }
+      { role: 'user' as const, content: 'Which route has fewer bottlenecks?' },
+      { role: 'assistant' as const, content: 'SG Highway has clear flow right now.' }
     ];
 
-    // Mock global fetch for Ollama / backend
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        response: 'SG Highway is recommended because of its 91% on-time arrival rate.',
-        model: 'phi4-mini',
-        provenance: 'LOCAL OLLAMA (phi4-mini)',
-        status: 'success'
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: 'SG Highway is recommended with 91% reliability and 28 min ETA.'
+                }
+              ]
+            }
+          }
+        ]
       })
     });
 
-    const res = await askRouteCopilot('Why is it recommended?', corridor.name, context, history);
+    const res = await queryDirectGeminiApi(
+      'Why is SG Highway better?',
+      corridor.name,
+      context,
+      history,
+      undefined,
+      'test-gemini-key',
+      'gemini-2.0-flash'
+    );
 
-    expect(res.status).toBe('success');
-    expect(res.model).toBe('phi4-mini');
-    expect(res.response).toContain('SG Highway');
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe('success');
+    expect(res?.model).toBe('gemini-2.0-flash');
+    expect(res?.provenance).toContain('GOOGLE GEMINI');
+    expect(res?.response).toContain('SG Highway');
   });
 
-  it('handles offline notice gracefully when Ollama service is unavailable', async () => {
+  it('measures connection latency and verifies key via testAiConnection', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Online and ready.' }]
+            }
+          }
+        ]
+      })
+    });
+
+    const testRes = await testAiConnection('valid-test-key', 'gemini-2.0-flash');
+    expect(testRes.success).toBe(true);
+    expect(testRes.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(testRes.message).toContain('Connected successfully to Google Gemini');
+  });
+
+  it('gracefully handles missing API key in testAiConnection', async () => {
+    const testRes = await testAiConnection('', 'gemini-2.0-flash');
+    expect(testRes.success).toBe(false);
+    expect(testRes.message).toContain('No Google Gemini API Key provided');
+  });
+
+  it('permanently provides live telemetry answers when no server or API key is set', async () => {
     const context = buildRouteChatContext(mockRoutingData, corridor.routes[0].id);
 
-    // Mock fetch failure
+    // Mock fetch failure (server/ollama offline and no cloud key)
     global.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'));
 
-    const res = await askRouteCopilot('Is there traffic?', corridor.name, context);
+    const res = await askRouteCopilot('Why is this route recommended?', corridor.name, context);
 
-    expect(res.status).toBe('error');
-    expect(res.model).toBe('offline');
-    expect(res.response).toContain('Phi-4-mini assistant is currently unreachable');
+    expect(res.status).toBe('success');
+    expect(res.response).toContain(corridor.routes[0].name);
+    expect(res.response).toContain('Live Telemetry');
   });
 });

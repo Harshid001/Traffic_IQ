@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { SlidersHorizontal, Home, Briefcase, Plus, MapPin, Sparkles, Navigation, BookOpen, RotateCcw, Compass, ChevronRight, Play } from 'lucide-react-native';
 import { PreferenceSelector } from '../components/Profile/PreferenceSelector';
 import { SystemDiagnostics } from '../components/Profile/SystemDiagnostics';
@@ -20,6 +20,28 @@ export const ProfileScreen: React.FC = () => {
   const setActiveTab = useNavigationStore(s => s.setActiveTab);
   const setShowOnboardingTutorial = useSettingsStore(s => s.setShowOnboardingTutorial);
   const resetOnboarding = useSettingsStore(s => s.resetOnboarding);
+
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    headerAnim.setValue(0);
+    cardsAnim.setValue(0);
+    Animated.stagger(110, [
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web'
+      }),
+      Animated.timing(cardsAnim, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web'
+      })
+    ]).start();
+  }, [headerAnim, cardsAnim]);
 
   const handleNavigateToPlace = (corridorId: string) => {
     setSelectedCorridor(corridorId);
@@ -42,7 +64,7 @@ export const ProfileScreen: React.FC = () => {
     >
       <View style={styles.contentWrapper}>
         {/* Header */}
-        <View style={styles.screenHeader}>
+        <Animated.View style={[styles.screenHeader, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
           <View style={styles.titleRow}>
             <SlidersHorizontal size={18} color={colors.primary} />
             <Text style={styles.titleText}>Driver Hub</Text>
@@ -50,99 +72,101 @@ export const ProfileScreen: React.FC = () => {
           <Text style={styles.subText}>
             Vehicle profiles, saved places & navigation preferences
           </Text>
-        </View>
+        </Animated.View>
 
-        {/* Interactive Feature Guide & App Tutorial Card */}
-        <Card style={styles.tutorialCard}>
-          <View style={styles.tutorialHeader}>
-            <View style={styles.tutorialHeaderLeft}>
-              <View style={styles.tutorialIconBox}>
-                <Sparkles size={16} color={colors.primaryBright} />
-              </View>
-              <View>
-                <View style={styles.tutorialTitleRow}>
-                  <Text style={styles.tutorialTitle}>APP INTRO & FEATURE TUTORIAL</Text>
-                  <View style={styles.guideBadge}>
-                    <Text style={styles.guideBadgeText}>6 Modules</Text>
+        <Animated.View style={{ opacity: cardsAnim, transform: [{ translateY: cardsAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
+          {/* Interactive Feature Guide & App Tutorial Card */}
+          <Card style={styles.tutorialCard}>
+            <View style={styles.tutorialHeader}>
+              <View style={styles.tutorialHeaderLeft}>
+                <View style={styles.tutorialIconBox}>
+                  <Sparkles size={16} color={colors.primaryBright} />
+                </View>
+                <View>
+                  <View style={styles.tutorialTitleRow}>
+                    <Text style={styles.tutorialTitle}>APP INTRO & FEATURE TUTORIAL</Text>
+                    <View style={styles.guideBadge}>
+                      <Text style={styles.guideBadgeText}>6 Modules</Text>
+                    </View>
                   </View>
+                  <Text style={styles.tutorialSub}>
+                    Interactive guide to AI Routing, HUD, Alerts & Copilot
+                  </Text>
                 </View>
-                <Text style={styles.tutorialSub}>
-                  Interactive guide to AI Routing, HUD, Alerts & Copilot
-                </Text>
               </View>
             </View>
-          </View>
 
-          <View style={styles.tutorialActionsRow}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleReplayTutorial}
-              style={styles.tutorialPlayBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Launch interactive app tutorial"
-            >
-              <Play size={13} color={colors.text.onAccent} fill={colors.text.onAccent} />
-              <Text style={styles.tutorialPlayBtnText}>Open Feature Tutorial</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleFreshStart}
-              style={styles.freshStartBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Make fresh start and reset onboarding"
-            >
-              <RotateCcw size={13} color={colors.text.secondary} />
-              <Text style={styles.freshStartBtnText}>Fresh Start</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-
-      {/* Saved Places Shortcuts */}
-      <Card style={styles.placesCard}>
-        <View style={styles.placesHeader}>
-          <View style={styles.placesHeaderLeft}>
-            <View style={styles.iconCircle}>
-              <MapPin size={14} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={styles.placesTitle}>SAVED PLACES & FREQUENT COMMUTES</Text>
-              <Text style={styles.placesSub}>Quick-launch navigation to frequent spots</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.placesList}>
-          {SAVED_PLACES.map(place => {
-            const Icon = place.icon;
-            return (
+            <View style={styles.tutorialActionsRow}>
               <TouchableOpacity
-                key={place.id}
-                activeOpacity={0.75}
-                onPress={() => handleNavigateToPlace(place.corridorId)}
-                style={styles.placeItem}
+                activeOpacity={0.8}
+                onPress={handleReplayTutorial}
+                style={styles.tutorialPlayBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Launch interactive app tutorial"
               >
-                <View style={styles.placeIcon}>
-                  <Icon size={16} color={colors.primary} />
-                </View>
-                <View style={styles.placeTextCol}>
-                  <Text style={styles.placeTitle}>{place.title}</Text>
-                  <Text style={styles.placeAddress}>{place.address}</Text>
-                </View>
-                <View style={styles.navButton}>
-                  <Navigation size={13} color={colors.text.onAccent} />
-                </View>
+                <Play size={13} color={colors.text.onAccent} fill={colors.text.onAccent} />
+                <Text style={styles.tutorialPlayBtnText}>Open Feature Tutorial</Text>
               </TouchableOpacity>
-            );
-          })}
-        </View>
-      </Card>
 
-      {/* Multi-Objective Routing Profile & Vehicle Mode */}
-      <PreferenceSelector />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleFreshStart}
+                style={styles.freshStartBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Make fresh start and reset onboarding"
+              >
+                <RotateCcw size={13} color={colors.text.secondary} />
+                <Text style={styles.freshStartBtnText}>Fresh Start</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
 
-      {/* Driver Audio & Safety Alerts */}
-      <SystemDiagnostics />
+          {/* Saved Places Shortcuts */}
+          <Card style={styles.placesCard}>
+            <View style={styles.placesHeader}>
+              <View style={styles.placesHeaderLeft}>
+                <View style={styles.iconCircle}>
+                  <MapPin size={14} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.placesTitle}>SAVED PLACES & FREQUENT COMMUTES</Text>
+                  <Text style={styles.placesSub}>Quick-launch navigation to frequent spots</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.placesList}>
+              {SAVED_PLACES.map(place => {
+                const Icon = place.icon;
+                return (
+                  <TouchableOpacity
+                    key={place.id}
+                    activeOpacity={0.75}
+                    onPress={() => handleNavigateToPlace(place.corridorId)}
+                    style={styles.placeItem}
+                  >
+                    <View style={styles.placeIcon}>
+                      <Icon size={16} color={colors.primary} />
+                    </View>
+                    <View style={styles.placeTextCol}>
+                      <Text style={styles.placeTitle}>{place.title}</Text>
+                      <Text style={styles.placeAddress}>{place.address}</Text>
+                    </View>
+                    <View style={styles.navButton}>
+                      <Navigation size={13} color={colors.text.onAccent} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Card>
+
+          {/* Multi-Objective Routing Profile & Vehicle Mode */}
+          <PreferenceSelector />
+
+          {/* Driver Audio & Safety Alerts */}
+          <SystemDiagnostics />
+        </Animated.View>
       </View>
     </ScrollView>
   );
