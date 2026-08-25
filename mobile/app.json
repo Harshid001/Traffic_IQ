@@ -32,7 +32,10 @@
       "bundler": "metro"
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:8005"
+      "apiBaseUrl": "http://localhost:8005",
+      "eas": {
+        "projectId": "ffd0f8d3-027e-42fa-82d7-46352048668a"
+      }
     },
     "plugins": []
   }
