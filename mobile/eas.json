@@ -1,24 +1,21 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 14.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://localhost:8005"
-      }
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.trafficiq.app"
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.trafficiq.app"
+      "android": {
+        "buildType": "apk"
       }
     }
   },

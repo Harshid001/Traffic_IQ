@@ -81,3 +81,7 @@ coverage/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Archives
+*.zip
+*.tar.gz
