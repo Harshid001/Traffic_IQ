@@ -328,6 +328,7 @@ export function getOllamaCandidateUrls(): string[] {
   const urls: string[] = [];
   urls.push('http://127.0.0.1:11434');
   urls.push('http://localhost:11434');
+  urls.push('http://192.168.1.147:11434');
   try {
     if (API_BASE_URL) {
       const match = API_BASE_URL.match(/https?:\/\/([^:/]+)/);
@@ -352,6 +353,7 @@ export function getBackendCandidateUrls(): string[] {
   if (API_BASE_URL) {
     urls.push(API_BASE_URL.replace(/\/+$/, ''));
   }
+  urls.push('http://192.168.1.147:8005');
   urls.push('http://127.0.0.1:8005');
   urls.push('http://localhost:8005');
   if (Platform.OS === 'android') {
