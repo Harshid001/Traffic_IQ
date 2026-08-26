@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { API_BASE_URL, getActiveApiBaseUrl } from './api';
 import { RouteData, RoutingResponse } from './routingService';
 import { useSettingsStore } from '../store/settingsStore';
@@ -52,6 +53,9 @@ export function getEffectiveGeminiApiKey(): string {
 
   const fromExpo = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim();
   if (fromExpo) return fromExpo;
+
+  const fromConfig = (Constants.expoConfig?.extra as any)?.geminiApiKey?.trim();
+  if (fromConfig) return fromConfig;
 
   const fromProcess = process.env.GEMINI_API_KEY?.trim();
   if (fromProcess) return fromProcess;
