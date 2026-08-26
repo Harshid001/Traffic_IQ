@@ -29,12 +29,10 @@ python -c "import json; p=r'mobile/eas.json'; data=json.load(open(p)); data['bui
 netsh advfirewall firewall add rule name="TrafficIQ FastAPI" dir=in action=allow protocol=TCP localport=8005 profile=any >nul 2>&1
 netsh advfirewall firewall add rule name="TrafficIQ Ollama" dir=in action=allow protocol=TCP localport=11434 profile=any >nul 2>&1
 
-:: Configure ADB reverse tunnels if Android device connected via USB
+:: Configure ADB reverse tunnels if Android device connected (USB or Wireless)
 where adb >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    adb reverse tcp:8005 tcp:8005 >nul 2>&1
-    adb reverse tcp:11434 tcp:11434 >nul 2>&1
-    adb reverse tcp:8081 tcp:8081 >nul 2>&1
+    python -c "import subprocess; out = subprocess.check_output(['adb', 'devices']).decode(); [subprocess.run(['adb', '-s', l.split('\t')[0], 'reverse', f'tcp:{p}', f'tcp:{p}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for l in out.strip().splitlines()[1:] if '\tdevice' in l for p in [8005, 8081, 11434]]" >nul 2>&1
     echo [OK] Configured ADB reverse tunnels for connected Android devices.
 )
 
@@ -72,7 +70,7 @@ start "TrafficIQ - [3] Mobile Cockpit" cmd /k "title TrafficIQ - [3] Mobile Cock
 
 echo.
 echo =====================================================================
-echo   ALL TRAFFICIQ SERVICES ARE RUNNING LIVE & AUTO-CONNECTED!
+echo   ALL TRAFFICIQ SERVICES ARE RUNNING LIVE ^& AUTO-CONNECTED!
 echo =====================================================================
 echo.
 echo   - Local Wi-Fi IP:     http://%DETECTED_IP%:8005
