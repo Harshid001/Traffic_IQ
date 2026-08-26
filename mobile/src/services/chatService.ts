@@ -64,16 +64,16 @@ export function getEffectiveGeminiApiKey(): string {
 }
 
 /**
- * Resolves the configured Gemini AI model (default: gemini-2.0-flash).
+ * Resolves the configured Gemini AI model (default: gemini-flash-latest).
  */
 export function getEffectiveAiModel(): string {
   try {
     const fromStore = useSettingsStore.getState().aiModel?.trim();
-    if (fromStore) return fromStore;
+    if (fromStore && fromStore !== 'gemini-2.0-flash') return fromStore;
   } catch {
     // fallback
   }
-  return 'gemini-2.0-flash';
+  return 'gemini-flash-latest';
 }
 
 /**

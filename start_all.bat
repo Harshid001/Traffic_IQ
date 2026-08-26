@@ -19,10 +19,8 @@ for /f "delims=" %%I in ('python -c "import socket; s = socket.socket(socket.AF_
 
 echo [*] Auto-detected Laptop Wi-Fi IP: %DETECTED_IP%
 
-:: Auto-sync mobile/.env and mobile/app.json with detected IP
-echo # Auto-configured by start_all.bat > "%ROOT_DIR%mobile\.env"
-echo EXPO_PUBLIC_API_BASE_URL=http://%DETECTED_IP%:8005 >> "%ROOT_DIR%mobile\.env"
-echo EXPO_PUBLIC_API_KEY=trafficiq-dev-key >> "%ROOT_DIR%mobile\.env"
+:: Auto-sync mobile/.env with detected IP while preserving any existing API keys
+python -c "import os; p=r'mobile/.env'; content=open(p).read() if os.path.exists(p) else ''; lines=[l for l in content.splitlines() if not l.startswith('EXPO_PUBLIC_API_BASE_URL=') and not l.startswith('EXPO_PUBLIC_API_KEY=')]; lines.insert(0, 'EXPO_PUBLIC_API_BASE_URL=http://%DETECTED_IP%:8005'); lines.insert(1, 'EXPO_PUBLIC_API_KEY=trafficiq-dev-key'); open(p,'w').write('\n'.join(lines)+'\n')" >nul 2>&1
 
 python -c "import json; p=r'mobile/app.json'; data=json.load(open(p)); data.setdefault('expo',{}).setdefault('extra',{})['apiBaseUrl']='http://%DETECTED_IP%:8005'; data['expo']['android']['usesCleartextTraffic']=True; json.dump(data, open(p,'w'), indent=2)" >nul 2>&1
 python -c "import json; p=r'mobile/eas.json'; data=json.load(open(p)); data['build']['preview'].setdefault('env',{})['EXPO_PUBLIC_API_BASE_URL']='http://%DETECTED_IP%:8005'; data['build']['production'].setdefault('env',{})['EXPO_PUBLIC_API_BASE_URL']='http://%DETECTED_IP%:8005'; json.dump(data, open(p,'w'), indent=2)" >nul 2>&1

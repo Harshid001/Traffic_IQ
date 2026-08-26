@@ -69,7 +69,7 @@ export const useSettingsStore = create<SettingsState>()(
       isLoadingHealth: false,
       healthError: null,
       geminiApiKey: '',
-      aiModel: 'gemini-2.0-flash',
+      aiModel: 'gemini-flash-latest',
       aiProvider: 'auto',
       customBackendUrl: '',
 
