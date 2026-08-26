@@ -25,6 +25,7 @@ echo EXPO_PUBLIC_API_BASE_URL=http://%DETECTED_IP%:8005 >> "%ROOT_DIR%mobile\.en
 echo EXPO_PUBLIC_API_KEY=trafficiq-dev-key >> "%ROOT_DIR%mobile\.env"
 
 python -c "import json; p=r'mobile/app.json'; data=json.load(open(p)); data.setdefault('expo',{}).setdefault('extra',{})['apiBaseUrl']='http://%DETECTED_IP%:8005'; data['expo']['android']['usesCleartextTraffic']=True; json.dump(data, open(p,'w'), indent=2)" >nul 2>&1
+python -c "import json; p=r'mobile/eas.json'; data=json.load(open(p)); data['build']['preview'].setdefault('env',{})['EXPO_PUBLIC_API_BASE_URL']='http://%DETECTED_IP%:8005'; data['build']['production'].setdefault('env',{})['EXPO_PUBLIC_API_BASE_URL']='http://%DETECTED_IP%:8005'; json.dump(data, open(p,'w'), indent=2)" >nul 2>&1
 
 :: Configure Windows Firewall for ports 8005 & 11434 (Silent)
 netsh advfirewall firewall add rule name="TrafficIQ FastAPI" dir=in action=allow protocol=TCP localport=8005 profile=any >nul 2>&1
