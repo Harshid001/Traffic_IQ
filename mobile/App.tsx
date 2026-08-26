@@ -13,6 +13,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { PageTransition } from './src/components/Common/PageTransition';
 import { AppIntroTutorial } from './src/components/Onboarding/AppIntroTutorial';
 import { colors } from './src/theme/colors';
+import { autoDiscoverBackend } from './src/services/api';
 
 const WEB_FRAME_WIDTH = 460;
 
@@ -26,6 +27,11 @@ export default function App() {
 
   const { width, height } = useWindowDimensions();
   const isFramed = Platform.OS === 'web' && width > WEB_FRAME_WIDTH;
+
+  useEffect(() => {
+    // Auto-discover and connect to local laptop backend with 0 manual steps
+    autoDiscoverBackend().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {

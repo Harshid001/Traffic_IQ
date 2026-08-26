@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, getActiveApiBaseUrl } from './api';
 import { RouteData, RoutingResponse } from './routingService';
 import { useSettingsStore } from '../store/settingsStore';
 
@@ -326,23 +326,34 @@ export async function testAiConnection(
  */
 export function getOllamaCandidateUrls(): string[] {
   const urls: string[] = [];
-  urls.push('http://127.0.0.1:11434');
-  urls.push('http://localhost:11434');
-  urls.push('http://192.168.1.147:11434');
   try {
-    if (API_BASE_URL) {
-      const match = API_BASE_URL.match(/https?:\/\/([^:/]+)/);
+    const customUrl = useSettingsStore.getState().customBackendUrl?.trim();
+    if (customUrl) {
+      const match = customUrl.match(/https?:\/\/([^:/]+)/);
+      if (match && match[1]) {
+        urls.push(`http://${match[1]}:11434`);
+      }
+    }
+  } catch {}
+
+  try {
+    const activeBase = getActiveApiBaseUrl();
+    if (activeBase) {
+      const match = activeBase.match(/https?:\/\/([^:/]+)/);
       if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
         urls.push(`http://${match[1]}:11434`);
       }
     }
-  } catch {
-    // fallback
-  }
+  } catch {}
+
+  urls.push('http://127.0.0.1:11434');
+  urls.push('http://localhost:11434');
+  urls.push('http://192.168.1.147:11434');
+
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:11434');
   }
-  return [...new Set(urls)];
+  return [...new Set(urls.filter(Boolean))];
 }
 
 /**
@@ -356,6 +367,14 @@ export function getBackendCandidateUrls(): string[] {
       urls.push(customUrl.replace(/\/+$/, ''));
     }
   } catch {}
+
+  try {
+    const activeBase = getActiveApiBaseUrl();
+    if (activeBase) {
+      urls.push(activeBase.replace(/\/+$/, ''));
+    }
+  } catch {}
+
   if (API_BASE_URL) {
     urls.push(API_BASE_URL.replace(/\/+$/, ''));
   }
@@ -365,7 +384,48 @@ export function getBackendCandidateUrls(): string[] {
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:8005');
   }
-  return [...new Set(urls)];
+  return [...new Set(urls.filter(Boolean))];
+}
+
+/**
+ * Test connectivity directly to the FastAPI backend.
+ */
+export async function testBackendConnection(
+  targetUrl?: string
+): Promise<{ success: boolean; latencyMs: number; message: string; data?: any }> {
+  const startTime = Date.now();
+  const candidateUrls = targetUrl ? [targetUrl.replace(/\/+$/, '')] : getBackendCandidateUrls();
+
+  for (const bUrl of candidateUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const resp = await fetch(`${bUrl}/api/health`, {
+        method: 'GET',
+        headers: { 'X-API-Key': 'trafficiq-dev-key' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const latencyMs = Date.now() - startTime;
+        const ollamaStatus = data?.services?.ollama_phi4 || 'unknown';
+        return {
+          success: true,
+          latencyMs,
+          data,
+          message: `Connected to FastAPI Backend at ${bUrl} (${latencyMs}ms)! Local AI: ${ollamaStatus}`
+        };
+      }
+    } catch {}
+  }
+
+  return {
+    success: false,
+    latencyMs: Date.now() - startTime,
+    message: 'Could not connect to FastAPI Backend (port 8005). Check laptop Wi-Fi IP and start_all.bat.'
+  };
 }
 
 /**
@@ -374,12 +434,12 @@ export function getBackendCandidateUrls(): string[] {
 export async function testOllamaConnection(): Promise<{ success: boolean; latencyMs: number; message: string; models: string[] }> {
   const startTime = Date.now();
 
-  // First check backend /api/health or backend /api/routes/chat
+  // First check backend /api/health
   const backendUrls = getBackendCandidateUrls();
   for (const bUrl of backendUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const resp = await fetch(`${bUrl}/api/health`, {
         method: 'GET',
         headers: { 'X-API-Key': 'trafficiq-dev-key' },
@@ -396,7 +456,7 @@ export async function testOllamaConnection(): Promise<{ success: boolean; latenc
             success: true,
             latencyMs,
             models: ['phi4-mini'],
-            message: `Local Ollama is ONLINE and active via FastAPI Backend (${latencyMs}ms)! Model: phi4-mini`
+            message: `Local Ollama is ONLINE and active via FastAPI Backend at ${bUrl} (${latencyMs}ms)! Model: phi4-mini`
           };
         }
       }
@@ -436,7 +496,7 @@ export async function testOllamaConnection(): Promise<{ success: boolean; latenc
     success: false,
     latencyMs: Date.now() - startTime,
     models: [],
-    message: 'Could not connect to Local Ollama on port 11434. Run start_all.bat or ollama serve.'
+    message: 'Could not connect to Local Ollama. Make sure start_all.bat is running on your laptop.'
   };
 }
 
@@ -471,7 +531,7 @@ export async function queryDirectOllama(
   for (const ollamaUrl of candidateUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
       const combinedSignal = signal || controller.signal;
 
       const resp = await fetch(`${ollamaUrl}/api/chat`, {
@@ -542,7 +602,7 @@ export async function askRouteCopilot(
     for (const baseUrl of backendUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
         const combinedSignal = signal || controller.signal;
 
         const resp = await fetch(`${baseUrl}/api/routes/chat`, {

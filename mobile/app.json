@@ -22,6 +22,7 @@
     "android": {
       "package": "com.trafficiq.cockpit",
       "versionCode": 1,
+      "usesCleartextTraffic": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

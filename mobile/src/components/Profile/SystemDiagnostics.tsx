@@ -19,7 +19,7 @@ import {
 } from 'lucide-react-native';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNavigationStore } from '../../store/navigationStore';
-import { testAiConnection, getEffectiveGeminiApiKey } from '../../services/chatService';
+import { testAiConnection, getEffectiveGeminiApiKey, testBackendConnection } from '../../services/chatService';
 import { Card } from '../Common/Card';
 import { Badge } from '../Common/Badge';
 import { colors } from '../../theme/colors';
@@ -62,6 +62,9 @@ const SystemDiagnosticsBase: React.FC = () => {
   const [isTestingOllama, setIsTestingOllama] = useState(false);
   const [ollamaTestResult, setOllamaTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [isTestingBackend, setIsTestingBackend] = useState(false);
+  const [backendTestResult, setBackendTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -75,8 +78,31 @@ const SystemDiagnosticsBase: React.FC = () => {
   const handleSaveUrl = useCallback(() => {
     setCustomBackendUrl(inputUrl);
     setUrlSaveSuccess(true);
+    setBackendTestResult(null);
     setTimeout(() => setUrlSaveSuccess(false), 2500);
   }, [inputUrl, setCustomBackendUrl]);
+
+  const handleTestBackend = useCallback(async () => {
+    setIsTestingBackend(true);
+    setBackendTestResult(null);
+    try {
+      const res = await testBackendConnection(inputUrl.trim() || undefined);
+      setBackendTestResult({
+        success: res.success,
+        message: res.message
+      });
+      if (res.success) {
+        refreshHealth();
+      }
+    } catch (e: any) {
+      setBackendTestResult({
+        success: false,
+        message: e?.message || 'Backend connection test failed'
+      });
+    } finally {
+      setIsTestingBackend(false);
+    }
+  }, [inputUrl, refreshHealth]);
 
   const doRefresh = useCallback(async () => {
     await refreshHealth();
@@ -251,14 +277,14 @@ const SystemDiagnosticsBase: React.FC = () => {
 
           {/* Remote Laptop / Public Tunnel Section (for 4G/5G mobile connection without same Wi-Fi) */}
           <View style={styles.keyInputContainer}>
-            <Text style={styles.keyInputLabel}>Remote Laptop URL (Public Tunnel / 4G Data):</Text>
+            <Text style={styles.keyInputLabel}>Laptop Backend URL (Local Wi-Fi IP or Tunnel):</Text>
             <View style={styles.keyInputRow}>
               <Server size={15} color={colors.text.muted} style={styles.keyIcon} />
               <TextInput
                 style={styles.keyInput}
                 value={inputUrl}
                 onChangeText={setInputUrl}
-                placeholder="e.g. https://your-tunnel.loca.lt or http://192.168.1.147:8005"
+                placeholder="e.g. http://192.168.1.147:8005 or https://your-tunnel.ngrok-free.app"
                 placeholderTextColor={colors.text.muted}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -282,9 +308,49 @@ const SystemDiagnosticsBase: React.FC = () => {
                   </>
                 )}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.testAiBtn, isTestingBackend && styles.btnDisabled]}
+                onPress={handleTestBackend}
+                disabled={isTestingBackend}
+                activeOpacity={0.8}
+              >
+                {isTestingBackend ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Server size={13} color={colors.primary} />
+                    <Text style={styles.testAiBtnText}>Test Backend</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
+
+            {backendTestResult && (
+              <View
+                style={[
+                  styles.testResultBox,
+                  backendTestResult.success ? styles.testResultSuccess : styles.testResultError
+                ]}
+              >
+                {backendTestResult.success ? (
+                  <CheckCircle2 size={14} color={colors.primary} />
+                ) : (
+                  <XCircle size={14} color={colors.danger} />
+                )}
+                <Text
+                  style={[
+                    styles.testResultText,
+                    { color: backendTestResult.success ? colors.primary : colors.danger }
+                  ]}
+                >
+                  {backendTestResult.message}
+                </Text>
+              </View>
+            )}
+
             <Text style={styles.aiFooterHelp}>
-              💡 Use this to connect your mobile app anywhere over 4G/5G to your laptop's local Phi-4-mini.
+              💡 Enter your laptop's Wi-Fi IP (e.g. http://192.168.X.X:8005) or public tunnel. Phone and laptop must be on the same Wi-Fi.
             </Text>
           </View>
 

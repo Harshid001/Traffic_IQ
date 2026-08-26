@@ -114,6 +114,7 @@ export const useSettingsStore = create<SettingsState>()(
         geminiApiKey: state.geminiApiKey,
         aiModel: state.aiModel,
         aiProvider: state.aiProvider,
+        customBackendUrl: state.customBackendUrl,
       }),
     }
   )

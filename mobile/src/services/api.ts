@@ -50,6 +50,77 @@ const resolveBaseUrl = (): string => {
 
 const API_BASE_URL = resolveBaseUrl();
 
+/**
+ * Returns the currently active API Base URL (prioritizing custom user-configured backend URLs).
+ */
+export function getActiveApiBaseUrl(): string {
+  try {
+    // Lazy resolution to avoid circular dependency with settingsStore
+    const { useSettingsStore } = require('../store/settingsStore');
+    const custom = useSettingsStore?.getState?.()?.customBackendUrl?.trim();
+    if (custom) {
+      return custom.replace(/\/+$/, '');
+    }
+  } catch {}
+  return API_BASE_URL;
+}
+
+let isDiscovering = false;
+
+/**
+ * Probes all candidate backend endpoints in parallel and automatically binds
+ * to the first reachable laptop backend server with 0 manual steps.
+ */
+export async function autoDiscoverBackend(): Promise<string | null> {
+  if (isDiscovering) return null;
+  isDiscovering = true;
+  try {
+    const candidates = [
+      getActiveApiBaseUrl(),
+      API_BASE_URL,
+      'http://192.168.1.147:8005',
+      'http://127.0.0.1:8005',
+      'http://localhost:8005',
+      'http://10.0.2.2:8005'
+    ].filter(Boolean) as string[];
+
+    const uniqueUrls = [...new Set(candidates.map(u => u.replace(/\/+$/, '')))];
+
+    const probes = uniqueUrls.map(async (url) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const resp = await fetch(`${url}/api/health`, {
+          method: 'GET',
+          headers: { 'X-API-Key': 'trafficiq-dev-key' },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (resp.ok) {
+          return url;
+        }
+      } catch {}
+      return null;
+    });
+
+    const results = await Promise.all(probes);
+    const workingUrl = results.find((r): r is string => Boolean(r));
+    if (workingUrl) {
+      try {
+        const { useSettingsStore } = require('../store/settingsStore');
+        const current = useSettingsStore?.getState?.()?.customBackendUrl;
+        if (current !== workingUrl) {
+          useSettingsStore?.getState?.()?.setCustomBackendUrl?.(workingUrl);
+        }
+      } catch {}
+      return workingUrl;
+    }
+  } finally {
+    isDiscovering = false;
+  }
+  return null;
+}
+
 /** True when the resolved origin is cleartext HTTP. */
 export const isInsecureTransport = API_BASE_URL.startsWith('http://');
 
@@ -113,7 +184,8 @@ export async function fetchJson<T>(endpoint: string, options: FetchOptions = {})
     ...rest 
   } = options;
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${API_BASE_URL}${path}`;
+  const baseUrl = getActiveApiBaseUrl();
+  const url = `${baseUrl}${path}`;
   const cacheKey = `${rest.method || 'GET'}:${path}:${rest.body ? String(rest.body) : ''}`;
 
   let attempt = 0;
