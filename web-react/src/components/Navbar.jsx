@@ -4,7 +4,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 const links = [
   { to: '/features', label: 'Features' },
   { to: '/demo', label: 'Live Demo' },
-  { to: '/copilot', label: 'Copilot' }
+  { to: '/copilot', label: 'Copilot', icon: '🤖', isAi: true }
 ];
 
 export default function Navbar() {
@@ -61,20 +61,24 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1" aria-label="Primary navigation">
+        <nav className="hidden md:flex items-center gap-2" aria-label="Primary navigation">
           {links.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               className={({ isActive }) =>
-                `nav-active-line text-sm font-medium transition-colors py-2 px-3.5 rounded-lg focus-visible:ring-2 focus-visible:ring-primary ${
+                `nav-active-line text-sm font-medium transition-all py-2 px-3.5 rounded-xl focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5 ${
                   isActive
-                    ? 'active text-primary-bright font-semibold bg-primary/5'
+                    ? 'active text-primary-bright font-semibold bg-primary/10 border border-primary/20'
                     : 'text-slate-300 hover:text-slate-100 hover:bg-white/5'
                 }`
               }
             >
-              {l.label}
+              {l.icon && <span className="text-sm">{l.icon}</span>}
+              <span>{l.label}</span>
+              {l.isAi && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Local AI Active" />
+              )}
             </NavLink>
           ))}
         </nav>
@@ -134,8 +138,17 @@ export default function Navbar() {
                   }`
                 }
               >
-                <span>{l.label}</span>
-                <span className="text-xs text-primary">→</span>
+                <div className="flex items-center gap-2">
+                  {l.icon && <span>{l.icon}</span>}
+                  <span>{l.label}</span>
+                </div>
+                {l.isAi ? (
+                  <span className="text-[0.7rem] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                    Phi-4-mini
+                  </span>
+                ) : (
+                  <span className="text-xs text-primary">→</span>
+                )}
               </NavLink>
             ))}
           </nav>

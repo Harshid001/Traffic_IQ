@@ -32,6 +32,7 @@ export default function Demo() {
   const [selectedRouteId, setSelectedRouteId] = useState('best');
   const [timeHorizon, setTimeHorizon] = useState('now');
   const [showGuide, setShowGuide] = useState(true);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const tabRefs = useRef([]);
 
   // Navigation simulation state
@@ -472,6 +473,17 @@ export default function Demo() {
                       <span>{simulationSpeed}x</span>
                     </button>
 
+                    {/* Copilot Quick Access in HUD */}
+                    <button
+                      onClick={() => setCopilotOpen((prev) => !prev)}
+                      className="px-3 py-2 rounded-xl border border-primary/40 bg-primary/10 text-primary-bright hover:bg-primary/20 active:scale-95 cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold"
+                      title="Toggle AI Driving Copilot"
+                    >
+                      <span>🤖</span>
+                      <span className="hidden sm:inline">Copilot</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </button>
+
                     {/* Play / Pause Toggle */}
                     <button
                       onClick={handleTogglePlay}
@@ -508,7 +520,7 @@ export default function Demo() {
                 </div>
               </>
             ) : (
-              /* Overview Mode: Large Glowing Start Navigation Button */
+              /* Overview Mode: Large Glowing Start Navigation & AI Copilot Buttons */
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <div className="text-xs uppercase font-bold text-slate-400">Ready to Drive</div>
@@ -517,13 +529,25 @@ export default function Demo() {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleStartNavigation}
-                  className="btn btn-primary px-6 py-3 text-sm font-bold flex items-center gap-2 shadow-glow hover:shadow-glow-lg"
-                >
-                  <Navigation2 size={18} strokeWidth={2.8} className="rotate-45" />
-                  <span>Start Navigation Demo</span>
-                </button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => setCopilotOpen((prev) => !prev)}
+                    className="px-4 py-3 rounded-2xl bg-surface/90 hover:bg-surface border border-primary/40 hover:border-primary text-slate-100 font-bold text-sm flex items-center gap-2 transition-all shadow-sm group cursor-pointer"
+                    title="Ask Local AI Copilot about this route"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">🤖</span>
+                    <span>AI Copilot</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  </button>
+
+                  <button
+                    onClick={handleStartNavigation}
+                    className="btn btn-primary px-6 py-3 text-sm font-bold flex items-center gap-2 shadow-glow hover:shadow-glow-lg cursor-pointer"
+                  >
+                    <Navigation2 size={18} strokeWidth={2.8} className="rotate-45" />
+                    <span>Start Navigation Demo</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -633,16 +657,46 @@ export default function Demo() {
           </div>
         </div>
 
-        {/* Right Column: Route Matrix & Copilot (5 Cols) */}
+        {/* Right Column: Route Matrix (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <RouteMatrix
             routes={routes}
             selectedRouteId={selectedRouteId}
             onSelectRoute={setSelectedRouteId}
           />
-
-          <CopilotWidget corridor={corridor} heightClass="h-[250px]" telemetry={telemetry} />
         </div>
+      </div>
+
+      {/* Floating AI Copilot Trigger / Popup Drawer */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {copilotOpen ? (
+          <div className="w-[360px] sm:w-[420px] shadow-2xl rounded-3xl overflow-hidden border border-primary/40 bg-card animate-fadeUp">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-surface/95 border-b border-white/10 text-xs">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <span>🤖</span> TrafficIQ Copilot ({corridor.city})
+              </span>
+              <button
+                onClick={() => setCopilotOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 cursor-pointer"
+                aria-label="Close copilot drawer"
+              >
+                ✕
+              </button>
+            </div>
+            <CopilotWidget corridor={corridor} heightClass="h-[320px]" telemetry={telemetry} />
+          </div>
+        ) : (
+          <button
+            onClick={() => setCopilotOpen(true)}
+            className="btn btn-primary px-4 py-3 rounded-2xl shadow-glow flex items-center gap-2.5 text-xs sm:text-sm font-bold cursor-pointer hover:scale-105 transition-all group"
+            aria-label="Open AI Copilot Chat"
+            title="Ask Local AI Copilot (Phi-4-mini)"
+          >
+            <span className="text-lg group-hover:scale-110 transition-transform">🤖</span>
+            <span>AI Copilot</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </button>
+        )}
       </div>
     </div>
   );
