@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="matrixBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090E17"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="fastestGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+    <linearGradient id="bestGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="pRangeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#F43F5E" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="scoreGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes barPulse {
+      0%, 100% { transform: scaleX(1); }
+      50% { transform: scaleX(1.02); }
+    }
+    @keyframes badgeGlow {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6)); }
+    }
+    .score-card {
+      transition: all 0.3s ease;
+    }
+  </style>
+
+  <rect width="900" height="280" rx="14" fill="url(#matrixBg)"/>
+  <rect width="898" height="278" x="1" y="1" rx="13" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.7"/>
+
+  <!-- Title -->
+  <g transform="translate(30, 24)">
+    <text x="0" y="0" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="700">
+      MULTI-OBJECTIVE SCORING ENGINE: ⚡ FASTEST VS ⭐ BEST
+    </text>
+    <text x="0" y="18" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="11">
+      Comparing static naive shortest travel time against Amazon Chronos-2 probabilistic reliability
+    </text>
+  </g>
+
+  <!-- Left Card: Naive "Fastest" Route -->
+  <g transform="translate(30, 68)">
+    <rect width="405" height="185" rx="10" fill="#1E293B" fill-opacity="0.6" stroke="#EF4444" stroke-width="1" stroke-opacity="0.5"/>
+    
+    <!-- Header -->
+    <rect width="405" height="32" rx="10" fill="#EF4444" fill-opacity="0.12"/>
+    <text x="14" y="21" fill="#F87171" font-family="system-ui, sans-serif" font-size="12" font-weight="700">⚡ NAIVE FASTEST ROUTE (Shortest Static ETA)</text>
+
+    <!-- Metrics -->
+    <g transform="translate(16, 48)">
+      <text x="0" y="16" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Nominal ETA:</text>
+      <text x="130" y="16" fill="#F87171" font-family="system-ui, sans-serif" font-size="12" font-weight="700">24 mins</text>
+      <text x="210" y="16" fill="#EF4444" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">(High Risk)</text>
+
+      <text x="0" y="38" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Actual In-Transit ETA:</text>
+      <text x="130" y="38" fill="#EF4444" font-family="system-ui, sans-serif" font-size="12" font-weight="700">38 ~ 46 mins</text>
+
+      <text x="0" y="60" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Bottleneck Risk:</text>
+      <text x="130" y="60" fill="#F87171" font-family="system-ui, sans-serif" font-size="11" font-weight="600">88% (Bridge Surge)</text>
+
+      <text x="0" y="82" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">On-Time Reliability:</text>
+      <text x="130" y="82" fill="#F87171" font-family="system-ui, sans-serif" font-size="11" font-weight="600">42% (Highly Volatile)</text>
+
+      <!-- Visual Warning Tag -->
+      <rect x="0" y="100" width="373" height="24" rx="6" fill="#450A0A" stroke="#7F1D1D" stroke-width="1"/>
+      <text x="10" y="116" fill="#FCA5A5" font-family="system-ui, sans-serif" font-size="10">⚠️ Traps driver in worsening queue within 10 minutes</text>
+    </g>
+  </g>
+
+  <!-- Right Card: TrafficIQ "Best" Route -->
+  <g transform="translate(465, 68)">
+    <rect width="405" height="185" rx="10" fill="#1E293B" fill-opacity="0.6" stroke="#10B981" stroke-width="1.2" stroke-opacity="0.8"/>
+    
+    <!-- Header -->
+    <rect width="405" height="32" rx="10" fill="#10B981" fill-opacity="0.15"/>
+    <text x="14" y="21" fill="#34D399" font-family="system-ui, sans-serif" font-size="12" font-weight="700">⭐ TRAFFICIQ BEST ROUTE (Chronos-2 Optimized)</text>
+
+    <!-- Metrics -->
+    <g transform="translate(16, 48)">
+      <text x="0" y="16" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Nominal ETA:</text>
+      <text x="130" y="16" fill="#34D399" font-family="system-ui, sans-serif" font-size="12" font-weight="700">26 mins</text>
+      <text x="210" y="16" fill="#10B981" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">(+2m vs static)</text>
+
+      <text x="0" y="38" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Chronos Quantiles:</text>
+      <text x="130" y="38" fill="#38BDF8" font-family="system-ui, sans-serif" font-size="11" font-weight="700">P₁₀: 25m | P₅₀: 26m | P₉₀: 29m</text>
+
+      <text x="0" y="60" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">Corridor Trend:</text>
+      <text x="130" y="60" fill="#34D399" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Clearing Flow (-14% queue)</text>
+
+      <text x="0" y="82" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="11">On-Time Reliability:</text>
+      <text x="130" y="82" fill="#34D399" font-family="system-ui, sans-serif" font-size="11" font-weight="700">94% (Stable Flow)</text>
+
+      <!-- Visual Success Tag -->
+      <rect x="0" y="100" width="373" height="24" rx="6" fill="#064E3B" stroke="#047857" stroke-width="1"/>
+      <text x="10" y="116" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="10">✓ Driver bypasses surge; arrives 12-18 minutes earlier</text>
+    </g>
+  </g>
+</svg>

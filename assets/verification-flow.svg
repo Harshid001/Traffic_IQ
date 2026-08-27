@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 230" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="vBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080D1A"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="passGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="verifyGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes arrowFlow {
+      from { stroke-dashoffset: 20; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes badgePulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+    .flow-arrow {
+      stroke-dasharray: 4, 4;
+      animation: arrowFlow 1s linear infinite;
+    }
+    .check-badge {
+      animation: badgePulse 2.5s ease-in-out infinite;
+    }
+  </style>
+
+  <rect width="900" height="230" rx="14" fill="url(#vBg)"/>
+  <rect width="898" height="228" x="1" y="1" rx="13" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.7"/>
+
+  <!-- Title -->
+  <g transform="translate(30, 24)">
+    <text x="0" y="0" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700">
+      3-LAYER ZERO-HALLUCINATION DETERMINISTIC SAFETY PIPELINE
+    </text>
+    <text x="0" y="17" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="10.5">
+      Every LLM response must pass 3 deterministic mathematical filters before reaching user speech / HUD
+    </text>
+  </g>
+
+  <!-- Flow Steps -->
+  <!-- Step 0: Raw LLM Output (x: 30) -->
+  <g transform="translate(30, 64)">
+    <rect width="145" height="135" rx="10" fill="#1E293B" stroke="#64748B" stroke-width="1"/>
+    <text x="12" y="24" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="11" font-weight="700">Raw LLM Output</text>
+    <text x="12" y="44" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Ollama Phi-4-mini</text>
+    <text x="12" y="58" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Groq Cloud (Llama)</text>
+    <text x="12" y="72" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Unvalidated Draft</text>
+    
+    <rect x="10" y="92" width="125" height="30" rx="5" fill="#334155" fill-opacity="0.5"/>
+    <text x="16" y="111" fill="#FBBF24" font-family="system-ui, sans-serif" font-size="9">⏳ Enters Gate 1...</text>
+  </g>
+
+  <!-- Arrow 0 -> 1 -->
+  <path d="M 175 130 L 205 130" stroke="#38BDF8" stroke-width="2" class="flow-arrow"/>
+
+  <!-- Step 1: Layer 1 Validator (x: 205) -->
+  <g transform="translate(205, 64)">
+    <rect width="185" height="135" rx="10" fill="#1E293B" stroke="#38BDF8" stroke-width="1.2"/>
+    <rect width="185" height="26" rx="10" fill="#0284C7" fill-opacity="0.2"/>
+    <text x="12" y="18" fill="#38BDF8" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">LAYER 1: NUMBER VALIDATOR</text>
+
+    <g transform="translate(12, 38)">
+      <text x="0" y="14" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ Regex Number Extraction</text>
+      <text x="0" y="28" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ Speed &amp; Delay Math Match</text>
+      <text x="0" y="42" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ Tolerance: ±1 unit max</text>
+      
+      <rect x="0" y="52" width="161" height="28" rx="5" fill="#0C4A6E" stroke="#0284C7" stroke-width="0.8"/>
+      <text x="8" y="70" fill="#7DD3FC" font-family="system-ui, sans-serif" font-size="8.5">Rejects ungrounded statistics</text>
+    </g>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <path d="M 390 130 L 420 130" stroke="#818CF8" stroke-width="2" class="flow-arrow"/>
+
+  <!-- Step 2: Layer 2 Validator (x: 420) -->
+  <g transform="translate(420, 64)">
+    <rect width="185" height="135" rx="10" fill="#1E293B" stroke="#818CF8" stroke-width="1.2"/>
+    <rect width="185" height="26" rx="10" fill="#4F46E5" fill-opacity="0.2"/>
+    <text x="12" y="18" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">LAYER 2: TREND CONSISTENCY</text>
+
+    <g transform="translate(12, 38)">
+      <text x="0" y="14" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ Directional Flow Analysis</text>
+      <text x="0" y="28" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ "Clearing" vs "Worsening"</text>
+      <text x="0" y="42" fill="#E2E8F0" font-family="system-ui, sans-serif" font-size="9.5">✓ Prevents inverted trend claims</text>
+      
+      <rect x="0" y="52" width="161" height="28" rx="5" fill="#312E81" stroke="#6366F1" stroke-width="0.8"/>
+      <text x="8" y="70" fill="#C7D2FE" font-family="system-ui, sans-serif" font-size="8.5">Cross-checked vs Chronos slope</text>
+    </g>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <path d="M 605 130 L 635 130" stroke="#C084FC" stroke-width="2" class="flow-arrow"/>
+
+  <!-- Step 3: Layer 3 & Verified Output (x: 635) -->
+  <g transform="translate(635, 64)">
+    <rect width="235" height="135" rx="10" fill="#064E3B" fill-opacity="0.4" stroke="#10B981" stroke-width="1.4"/>
+    <rect width="235" height="26" rx="10" fill="#059669" fill-opacity="0.25"/>
+    <text x="12" y="18" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">LAYER 3 &amp; VERIFIED OUTPUT</text>
+
+    <g transform="translate(12, 38)">
+      <text x="0" y="14" fill="#ECFDF5" font-family="system-ui, sans-serif" font-size="9.5">✓ Route Recommendation Check</text>
+      <text x="0" y="28" fill="#ECFDF5" font-family="system-ui, sans-serif" font-size="9.5">✓ Fallback Trigger on failure</text>
+      
+      <rect x="0" y="44" width="211" height="38" rx="6" fill="#022C22" stroke="#10B981" stroke-width="1"/>
+      <text x="10" y="60" fill="#34D399" font-family="system-ui, sans-serif" font-size="9.5" font-weight="700">🔒 100% Zero-Hallucination Delivery</text>
+      <text x="10" y="74" fill="#A7F3D0" font-family="system-ui, sans-serif" font-size="8.5">Audio TTS Voice + HUD Guidance</text>
+    </g>
+  </g>
+</svg>

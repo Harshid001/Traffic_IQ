@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 420" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="archBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080D1A"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312E81"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064E3B"/>
+      <stop offset="100%" stop-color="#022C22"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="glowPulse" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <pattern id="archGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" stroke-width="0.5" stroke-opacity="0.25"/>
+    </pattern>
+  </defs>
+
+  <style>
+    @keyframes flowLeftToRight {
+      from { stroke-dashoffset: 40; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes pulseNode {
+      0%, 100% { stroke-opacity: 0.4; }
+      50% { stroke-opacity: 1; }
+    }
+    @keyframes signalPulse {
+      0% { offset-distance: 0%; opacity: 0.1; }
+      50% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0.1; }
+    }
+
+    .flow-line {
+      stroke-dasharray: 6, 6;
+      animation: flowLeftToRight 1.5s linear infinite;
+    }
+    .node-border-ai {
+      animation: pulseNode 3s ease-in-out infinite;
+    }
+  </style>
+
+  <!-- Background -->
+  <rect width="940" height="420" rx="14" fill="url(#archBg)"/>
+  <rect width="940" height="420" rx="14" fill="url(#archGrid)"/>
+  <rect width="938" height="418" x="1" y="1" rx="13" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.7"/>
+
+  <!-- Architecture Header Banner -->
+  <g transform="translate(30, 24)">
+    <text x="0" y="0" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" letter-spacing="-0.3">
+      TRAFFICIQ SYSTEM ARCHITECTURE &amp; DATA PIPELINE
+    </text>
+    <text x="0" y="18" fill="#64748B" font-family="system-ui, -apple-system, sans-serif" font-size="11.5">
+      End-to-end flow from live telemetry ingestion to 3-layer deterministic zero-hallucination verification
+    </text>
+  </g>
+
+  <!-- COLUMN 1: Ingestion & Routing (x: 40) -->
+  <g transform="translate(40, 75)">
+    <rect width="200" height="305" rx="12" fill="url(#nodeGrad1)" stroke="#38BDF8" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect width="200" height="32" rx="12" fill="#0284C7" fill-opacity="0.15"/>
+    <text x="14" y="21" fill="#38BDF8" font-family="system-ui, sans-serif" font-size="12" font-weight="700">1. INGESTION &amp; ROUTING</text>
+
+    <!-- Sub Card: 3-Tier OSRM Router -->
+    <g transform="translate(14, 46)">
+      <rect width="172" height="72" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="20" fill="#F1F5F9" font-family="system-ui, sans-serif" font-size="11" font-weight="600">3-Tier Routing Client</text>
+      <text x="10" y="38" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• Local OSRM Server (5000)</text>
+      <text x="10" y="52" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• Public Project-OSRM Router</text>
+      <text x="10" y="66" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• High-Fidelity Geometry Fallback</text>
+    </g>
+
+    <!-- Sub Card: Database / Telemetry -->
+    <g transform="translate(14, 130)">
+      <rect width="172" height="66" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="20" fill="#F1F5F9" font-family="system-ui, sans-serif" font-size="11" font-weight="600">SQLite WAL Telemetry</text>
+      <text x="10" y="38" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• Segment History &amp; Speed Logs</text>
+      <text x="10" y="52" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• 5,000ms Busy Timeout Lockless</text>
+    </g>
+
+    <!-- Sub Card: Traffic Sensors -->
+    <g transform="translate(14, 208)">
+      <rect width="172" height="82" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="20" fill="#F1F5F9" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Real-Time Corridors</text>
+      <text x="10" y="38" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• SF Bay Area, NYC, BLR, BOM</text>
+      <text x="10" y="52" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• Dynamic Bottleneck Simulator</text>
+      <text x="10" y="66" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9.5">• Live Incident &amp; Weather Feed</text>
+    </g>
+  </g>
+
+  <!-- Connectors: Col 1 -> Col 2 -->
+  <path d="M 240 180 L 285 180" stroke="#38BDF8" stroke-width="2" class="flow-line"/>
+  <path d="M 240 280 L 285 240" stroke="#38BDF8" stroke-width="2" class="flow-line"/>
+
+  <!-- COLUMN 2: Intelligence & Forecasting (x: 285) -->
+  <g transform="translate(285, 75)">
+    <rect width="215" height="305" rx="12" fill="url(#aiGrad)" stroke="#818CF8" stroke-width="1.4" class="node-border-ai"/>
+    <rect width="215" height="32" rx="12" fill="#4F46E5" fill-opacity="0.25"/>
+    <text x="14" y="21" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="12" font-weight="700">2. CHRONOS-2 &amp; SCORING</text>
+
+    <!-- Sub Card: Amazon Chronos-2 Transformer -->
+    <g transform="translate(14, 46)">
+      <rect width="187" height="80" rx="8" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="10" y="19" fill="#E0E7FF" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Amazon Chronos-2 Model</text>
+      <text x="10" y="36" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="9.5">• Probabilistic Time-Series Transformer</text>
+      <text x="10" y="50" fill="#A5B4FC" font-family="system-ui, sans-serif" font-size="9.5">• Quantile Envelopes (P10, P50, P90)</text>
+      <text x="10" y="66" fill="#34D399" font-family="system-ui, sans-serif" font-size="9.5">★ 47.3% MAE Improvement</text>
+    </g>
+
+    <!-- Sub Card: Multi-Objective Scoring -->
+    <g transform="translate(14, 138)">
+      <rect width="187" height="74" rx="8" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="10" y="19" fill="#E0E7FF" font-family="system-ui, sans-serif" font-size="11" font-weight="600">⚡ Fastest vs ⭐ Best Engine</text>
+      <text x="10" y="36" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="9.5">• Pareto Multi-Factor Optimization</text>
+      <text x="10" y="50" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="9.5">• Congestion Penalty &amp; Volatility</text>
+      <text x="10" y="64" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="9.5">• Historical Corridor DNA Match</text>
+    </g>
+
+    <!-- Sub Card: Proactive Alerts Engine -->
+    <g transform="translate(14, 224)">
+      <rect width="187" height="66" rx="8" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="10" y="19" fill="#E0E7FF" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Proactive Road Alert Engine</text>
+      <text x="10" y="36" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="9.5">• Predictive Jam Alerts (15m ahead)</text>
+      <text x="10" y="50" fill="#CBD5E1" font-family="system-ui, sans-serif" font-size="9.5">• Cooldown &amp; Reroute Triggering</text>
+    </g>
+  </g>
+
+  <!-- Connectors: Col 2 -> Col 3 -->
+  <path d="M 500 180 L 545 180" stroke="#818CF8" stroke-width="2" class="flow-line"/>
+  <path d="M 500 280 L 545 280" stroke="#818CF8" stroke-width="2" class="flow-line"/>
+
+  <!-- COLUMN 3: 3-Layer Zero-Hallucination Guardrail (x: 545) -->
+  <g transform="translate(545, 75)">
+    <rect width="195" height="305" rx="12" fill="url(#nodeGrad1)" stroke="#C084FC" stroke-width="1.2" stroke-opacity="0.6"/>
+    <rect width="195" height="32" rx="12" fill="#9333EA" fill-opacity="0.18"/>
+    <text x="14" y="21" fill="#D8B4FE" font-family="system-ui, sans-serif" font-size="12" font-weight="700">3. SAFETY GUARDRAILS</text>
+
+    <!-- Layer 1 -->
+    <g transform="translate(14, 46)">
+      <rect width="167" height="64" rx="7" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="18" fill="#F3E8FF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Layer 1: Number Validator</text>
+      <text x="10" y="34" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Strict Regex &amp; Math Bounds</text>
+      <text x="10" y="48" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Rejects Fabricated Speeds/ETAs</text>
+    </g>
+
+    <!-- Layer 2 -->
+    <g transform="translate(14, 120)">
+      <rect width="167" height="64" rx="7" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="18" fill="#F3E8FF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Layer 2: Fact &amp; Trend Check</text>
+      <text x="10" y="34" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Validates Congestion Vectors</text>
+      <text x="10" y="48" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Clearing vs Worsening Verified</text>
+    </g>
+
+    <!-- Layer 3 -->
+    <g transform="translate(14, 194)">
+      <rect width="167" height="74" rx="7" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+      <text x="10" y="18" fill="#F3E8FF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Layer 3: Decision Sanity</text>
+      <text x="10" y="34" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Prevents Inverted Routing Logic</text>
+      <text x="10" y="48" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="9">• Local Phi-4-mini / Groq / Fallback</text>
+      <text x="10" y="62" fill="#34D399" font-family="system-ui, sans-serif" font-size="9">✓ 100% Deterministic Safety</text>
+    </g>
+  </g>
+
+  <!-- Connectors: Col 3 -> Col 4 -->
+  <path d="M 740 180 L 780 180" stroke="#C084FC" stroke-width="2" class="flow-line"/>
+  <path d="M 740 290 L 780 290" stroke="#C084FC" stroke-width="2" class="flow-line"/>
+
+  <!-- COLUMN 4: Delivery Clients (x: 780) -->
+  <g transform="translate(780, 75)">
+    <rect width="125" height="305" rx="12" fill="url(#clientGrad)" stroke="#10B981" stroke-width="1.2" stroke-opacity="0.6"/>
+    <rect width="125" height="32" rx="12" fill="#059669" fill-opacity="0.2"/>
+    <text x="12" y="21" fill="#6EE7B7" font-family="system-ui, sans-serif" font-size="11.5" font-weight="700">4. CLIENTS</text>
+
+    <!-- Client 1: Mobile App -->
+    <g transform="translate(10, 46)">
+      <rect width="105" height="116" rx="8" fill="#0F172A" stroke="#059669" stroke-width="1"/>
+      <text x="8" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Mobile Cockpit</text>
+      <text x="8" y="34" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• React Native / Expo</text>
+      <text x="8" y="48" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Turn HUD &amp; TTS</text>
+      <text x="8" y="62" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Traffic Timeline</text>
+      <text x="8" y="76" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Standalone APK</text>
+      <text x="8" y="94" fill="#34D399" font-family="system-ui, sans-serif" font-size="8.5" font-weight="600">iOS &amp; Android</text>
+    </g>
+
+    <!-- Client 2: Web Dashboard -->
+    <g transform="translate(10, 174)">
+      <rect width="105" height="116" rx="8" fill="#0F172A" stroke="#059669" stroke-width="1"/>
+      <text x="8" y="18" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="10.5" font-weight="700">Web React</text>
+      <text x="8" y="34" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Vite + Tailwind</text>
+      <text x="8" y="48" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Live GPS Canvas</text>
+      <text x="8" y="62" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• AI Voice Copilot</text>
+      <text x="8" y="76" fill="#94A3B8" font-family="system-ui, sans-serif" font-size="8.5">• Scenario Sim</text>
+      <text x="8" y="94" fill="#38BDF8" font-family="system-ui, sans-serif" font-size="8.5" font-weight="600">Vercel Cloud</text>
+    </g>
+  </g>
+</svg>
