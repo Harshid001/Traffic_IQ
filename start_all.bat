@@ -73,6 +73,8 @@ echo =====================================================================
 echo   ALL TRAFFICIQ SERVICES ARE RUNNING LIVE ^& AUTO-CONNECTED!
 echo =====================================================================
 echo.
+echo   - Production Web App: https://web-react-phi-blue.vercel.app
+echo   - Web AI Copilot:     https://web-react-phi-blue.vercel.app/copilot
 echo   - Local Wi-Fi IP:     http://%DETECTED_IP%:8005
 echo   - Mobile Cockpit:     Expo Dev Server (Window [3])
 echo   - Backend API Docs:   http://localhost:8005/docs

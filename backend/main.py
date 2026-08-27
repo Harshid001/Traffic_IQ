@@ -95,11 +95,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Optional API Key Authentication Middleware for /api routes
 @app.middleware("http")
 async def auth_and_rate_limit_middleware(request: Request, call_next):
-    # Bypass auth for health check, docs, openapi, and OPTIONS preflight
-    if request.method == "OPTIONS" or request.url.path in ["/api/health", "/docs", "/redoc", "/openapi.json"]:
+    # Bypass auth for health check, docs, openapi, chat, and OPTIONS preflight
+    if request.method == "OPTIONS" or request.url.path in ["/api/health", "/docs", "/redoc", "/openapi.json", "/api/chat", "/api/routes/chat"]:
         return await call_next(request)
         
     if settings.REQUIRE_API_KEY:
@@ -116,6 +115,28 @@ app.include_router(traffic_router, prefix="/api/traffic", tags=["Traffic Analyti
 app.include_router(forecast_router, prefix="/api/forecast", tags=["Chronos-2 Forecasting"])
 app.include_router(evaluation_router, prefix="/api/evaluation", tags=["Model Benchmark"])
 app.include_router(alerts_router, prefix="/api/alerts", tags=["Predictive Road Alerts"])
+
+@app.post("/api/chat", tags=["AI Copilot Direct"])
+async def direct_chat_copilot(req: routes_router.routes[0].endpoint.__globals__.get("ChatRequest", None) or Request):
+    from backend.explanation.ollama_client import ollama_client
+    if isinstance(req, Request):
+        body = await req.json()
+        query = body.get("query", "")
+        route_context = body.get("route_context")
+        corridor_name = body.get("corridor_name")
+        messages = body.get("messages")
+    else:
+        query = req.query
+        route_context = req.route_context
+        corridor_name = req.corridor_name
+        messages = [m.model_dump() for m in req.messages] if req.messages else None
+
+    return await ollama_client.chat_copilot(
+        query=query,
+        route_context=route_context,
+        corridor_name=corridor_name,
+        messages=messages
+    )
 
 @app.get("/api/health")
 async def health_check():
